@@ -22,8 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $token     = bin2hex(random_bytes(32));
         $tokenHash = hash('sha256', $token);
 
-        // ✅ FIX: Let MySQL compute the expiry so both sides use the same clock
-        // (prevents PHP vs MySQL timezone mismatch = "instantly expired" bug)
+        // Let MySQL compute the expiry so both sides use the same clock
         $upd = $con->prepare("UPDATE users SET reset_token = ?, reset_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE user_id = ?");
         $upd->bind_param("si", $tokenHash, $user['user_id']);
         $upd->execute();
@@ -35,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $html = "
         <div style='font-family:Arial,sans-serif;max-width:500px;margin:auto;border:1px solid #eee;border-radius:12px;overflow:hidden'>
             <div style='background:#8B0000;color:#fff;padding:20px;text-align:center'>
-                <h2 style='margin:0'>Kuya Batas Canteen</h2>
+                <h2 style='margin:0'>Meryll Eatery</h2>
             </div>
             <div style='padding:25px'>
                 <p>Hi <b>" . htmlspecialchars($user['username']) . "</b>,</p>
@@ -49,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>";
 
-        $sent = sendMail($email, 'Password Reset - Kuya Batas Canteen', $html);
+        $sent = sendMail($email, 'Password Reset - Meryll Eatery', $html);
 
         if ($sent['success']) {
             $notif = 'A password reset link was sent to your email. It expires in 1 hour.';
@@ -68,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Forgot Password - Kuya Batas Canteen</title>
+<title>Forgot Password - Meryll Eatery</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
