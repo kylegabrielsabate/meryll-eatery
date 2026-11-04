@@ -17,7 +17,7 @@ if (file_exists(__DIR__ . '/vendor/autoload.php')) {
 //  Falls back to your local credentials if not set in the cloud
 // ============================================================
 define('SMTP_USER', getenv('SMTP_USER') ?: 'kuya.batas28@gmail.com');
-define('SMTP_PASS', getenv('SMTP_PASS') ?: 'bjip tybd hfxy dwuh'); 
+define('SMTP_PASS', getenv('SMTP_PASS') ?: 'xvxirflqxnxs syut'); // Update this locally if needed, but Render uses the env var
 define('BASE_URL',  getenv('BASE_URL')  ?: 'http://localhost/kuyabatas/user');
 
 // ============================================================
@@ -27,7 +27,13 @@ function sendMail($toEmail, $subject, $htmlBody) {
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
+        
+        // ✅ FIX 1: Timeout after 10 seconds so it doesn't hang forever
+        $mail->Timeout = 10; 
+        
+        // ✅ FIX 2: Force IPv4 to fix Docker "Network is unreachable" error
+        $mail->Host       = gethostbyname('smtp.gmail.com'); 
+        
         $mail->SMTPAuth   = true;
         $mail->Username   = SMTP_USER;
         $mail->Password   = SMTP_PASS;
