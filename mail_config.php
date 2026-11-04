@@ -1,45 +1,36 @@
 <?php
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-if (file_exists(__DIR__ . '/vendor/autoload.php')) {
-    require __DIR__ . '/vendor/autoload.php';
-} else {
-    require __DIR__ . '/phpmailer/src/Exception.php';
-    require __DIR__ . '/phpmailer/src/PHPMailer.php';
-    require __DIR__ . '/phpmailer/src/SMTP.php';
-}
-
-// ✅ TRIM() removes ALL invisible spaces/newlines from copy-pasting
-define('SMTP_USER', trim(getenv('SMTP_USER')) ?: 'kuya.batas28@gmail.com');
-define('SMTP_PASS', trim(getenv('SMTP_PASS')) ?: 'xvxirflqxnxssyut'); 
-define('BASE_URL',  trim(getenv('BASE_URL'))  ?: 'http://localhost/kuyabatas/user');
+// Get API key and Base URL from Render Environment Variables
+// NOTE: The placeholder ensures GitHub never blocks your push again!
+define('RESEND_API_KEY', trim(getenv('RESEND_API_KEY')) ?: 're_test_key_placeholder');
+define('BASE_URL', trim(getenv('BASE_URL')) ?: 'http://localhost/kuyabatas/user');
 
 function sendMail($toEmail, $subject, $htmlBody) {
-    $mail = new PHPMailer(true);
-    try {
-        $mail->isSMTP();
-        $mail->Timeout = 15; 
-        
-        // Try standard Gmail with explicit SSL
-        $mail->Host = 'smtp.gmail.com';
-        $mail->SMTPAuth = true;
-        $mail->Username = SMTP_USER;
-        $mail->Password = SMTP_PASS; 
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Explicit SSL
-        $mail->Port = 465;
+    $url = 'https://api.resend.com/emails';
+    
+    $data = [
+        'from' => 'Meryll Eatery <onboarding@resend.dev>', 
+        'to' => [$toEmail],
+        'subject' => $subject,
+        'html' => $htmlBody
+    ];
 
-        $mail->setFrom(SMTP_USER, 'Meryll Eatery');
-        $mail->addAddress($toEmail);
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body = $htmlBody;
-        $mail->AltBody = strip_tags($htmlBody);
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . RESEND_API_KEY,
+        'Content-Type: application/json'
+    ]);
 
-        $mail->send();
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode >= 200 && $httpCode < 300) {
         return ['success' => true];
-    } catch (Exception $e) {
-        return ['success' => false, 'message' => $mail->ErrorInfo];
+    } else {
+        return ['success' => false, 'message' => 'Resend API Error: HTTP ' . $httpCode];
     }
 }
 ?>
