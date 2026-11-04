@@ -1,22 +1,19 @@
-# Use official PHP 8.2 with Apache
 FROM php:8.2-apache
+
+# Enable Apache mod_rewrite
+RUN a2enmod rewrite
 
 # Install MySQL extensions
 RUN docker-php-ext-install mysqli pdo pdo_mysql
-RUN a2enmod rewrite
 
-# Copy Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Copy your website files to the Apache folder
+# Copy all your website files to Apache's public folder
 COPY . /var/www/html/
 
-# Set permissions
+# Set proper permissions
 RUN chown -R www-data:www-data /var/www/html/
+
+# Set working directory
 WORKDIR /var/www/html/
 
-# Install PHPMailer via Composer
-RUN composer require phpmailer/phpmailer
-
-# Expose port 80
+# Apache runs on port 80
 EXPOSE 80
