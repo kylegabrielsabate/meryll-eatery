@@ -10,15 +10,15 @@ $adminName = $_SESSION['username'];
 $message = ""; $msg_type = "";
 $active_tab = $_GET['tab'] ?? 'ulam';
 
-// ✅ FIXED: Correct Category IDs
+// ✅ FIXED: Added correct folder names to match your GitHub structure
 $cat_map = [
-    'ulam' => ['id' => 1, 'name' => 'Ulam', 'folder' => '', 'use_webcam' => true],
-    'meryenda' => ['id' => 2, 'name' => 'Meryenda', 'folder' => '', 'use_webcam' => false],
-    'candies' => ['id' => 3, 'name' => 'Candies', 'folder' => '', 'use_webcam' => false],
-    'coffee' => ['id' => 4, 'name' => 'Coffee', 'folder' => '', 'use_webcam' => false],
-    'drinks' => ['id' => 5, 'name' => 'Drinks', 'folder' => '', 'use_webcam' => false],
-    'noodles' => ['id' => 6, 'name' => 'Noodles', 'folder' => '', 'use_webcam' => false],
-    'essentials' => ['id' => 7, 'name' => 'Essentials', 'folder' => '', 'use_webcam' => false],
+    'ulam' => ['id' => 1, 'name' => 'Ulam', 'folder' => 'ulam', 'use_webcam' => true],
+    'meryenda' => ['id' => 2, 'name' => 'Meryenda', 'folder' => 'meryenda', 'use_webcam' => false],
+    'candies' => ['id' => 3, 'name' => 'Candies', 'folder' => 'candies', 'use_webcam' => false],
+    'coffee' => ['id' => 4, 'name' => 'Coffee', 'folder' => 'drinks', 'use_webcam' => false],
+    'drinks' => ['id' => 5, 'name' => 'Drinks', 'folder' => 'drinks', 'use_webcam' => false],
+    'noodles' => ['id' => 6, 'name' => 'Noodles', 'folder' => 'noodles', 'use_webcam' => false],
+    'essentials' => ['id' => 7, 'name' => 'Essentials', 'folder' => 'essentials', 'use_webcam' => false],
 ];
 
 // ============ HANDLE ADD ITEM ============
@@ -29,7 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     else {
         $name = $con->real_escape_string(trim($_POST['item_name']));
         $price = (float)$_POST['item_price'];
-        $target_dir = "../images/";
+        // ✅ FIXED: Save to category subfolder
+        $target_dir = "../images/" . $cat['folder'] . "/";
         if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
         
         $image_name = ""; $upload_ok = 1;
@@ -102,7 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_item'])) {
         $row = $stmt->get_result()->fetch_assoc();
         
         if ($row && !empty($row['productImage'])) {
-            $file = "../images/" . $row['productImage'];
+            // ✅ FIXED: Delete from correct subfolder
+            $file = "../images/" . $cat['folder'] . "/" . $row['productImage'];
             if (file_exists($file)) @unlink($file);
         }
         
@@ -324,10 +326,11 @@ $recent_orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u 
                                             </form>
                                         </div>
 
-                                        <img src="../images/<?=$item['productImage']?>" alt="<?=htmlspecialchars($item['productname'])?>" onerror="this.src='https://via.placeholder.com/160x120?text=No+Image'">
+                                        <!-- ✅ FIXED: Added folder path to image source -->
+                                        <img src="../images/<?=$cat['folder']?>/<?=$item['productImage']?>" alt="<?=htmlspecialchars($item['productname'])?>" onerror="this.src='https://via.placeholder.com/160x120?text=No+Image'">
                                         <div class="item-card-body">
                                             <div class="item-card-name"><?=htmlspecialchars($item['productname'])?></div>
-                                            <div class="item-card-price"><?=number_format($item['price'],2)?></div>
+                                            <div class="item-card-price">₱<?=number_format($item['price'],2)?></div>
                                         </div>
                                     </div>
                                     <?php endforeach; ?>
