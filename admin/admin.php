@@ -10,15 +10,15 @@ $adminName = $_SESSION['username'];
 $message = ""; $msg_type = "";
 $active_tab = $_GET['tab'] ?? 'ulam';
 
-// Category mapping
+// ✅ FIXED: Correct Category IDs
 $cat_map = [
-    'ulam' => ['id' => 1, 'name' => 'Ulam', 'folder' => 'ulam', 'use_webcam' => true],
-    'meryenda' => ['id' => 2, 'name' => 'Meryenda', 'folder' => 'meryenda', 'use_webcam' => false],
-    'candies' => ['id' => 7, 'name' => 'Candies', 'folder' => 'candies', 'use_webcam' => false],
-    'coffee' => ['id' => 4, 'name' => 'Coffee', 'folder' => 'drinks', 'use_webcam' => false],
-    'drinks' => ['id' => 5, 'name' => 'Drinks', 'folder' => 'drinks', 'use_webcam' => false],
-    'noodles' => ['id' => 8, 'name' => 'Noodles', 'folder' => 'noodles', 'use_webcam' => false],
-    'essentials' => ['id' => 9, 'name' => 'Essentials', 'folder' => 'essentials', 'use_webcam' => false],
+    'ulam' => ['id' => 1, 'name' => 'Ulam', 'folder' => '', 'use_webcam' => true],
+    'meryenda' => ['id' => 2, 'name' => 'Meryenda', 'folder' => '', 'use_webcam' => false],
+    'candies' => ['id' => 3, 'name' => 'Candies', 'folder' => '', 'use_webcam' => false],
+    'coffee' => ['id' => 4, 'name' => 'Coffee', 'folder' => '', 'use_webcam' => false],
+    'drinks' => ['id' => 5, 'name' => 'Drinks', 'folder' => '', 'use_webcam' => false],
+    'noodles' => ['id' => 6, 'name' => 'Noodles', 'folder' => '', 'use_webcam' => false],
+    'essentials' => ['id' => 7, 'name' => 'Essentials', 'folder' => '', 'use_webcam' => false],
 ];
 
 // ============ HANDLE ADD ITEM ============
@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     else {
         $name = $con->real_escape_string(trim($_POST['item_name']));
         $price = (float)$_POST['item_price'];
-        $target_dir = "../images/" . $cat['folder'] . "/";
+        $target_dir = "../images/";
         if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
         
         $image_name = ""; $upload_ok = 1;
@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_item'])) {
         $row = $stmt->get_result()->fetch_assoc();
         
         if ($row && !empty($row['productImage'])) {
-            $file = "../images/" . $cat['folder'] . "/" . $row['productImage'];
+            $file = "../images/" . $row['productImage'];
             if (file_exists($file)) @unlink($file);
         }
         
@@ -124,22 +124,8 @@ foreach ($cat_map as $key => $cat) {
     $res->execute();
     $db_items = $res->get_result()->fetch_all(MYSQLI_ASSOC);
     
-    // For Ulam tab, merge with hardcoded items so they show up like in the user dashboard
-    if ($key === 'ulam') {
-        $hardcoded_ulam = [
-            ['productID' => 0, 'productname' => 'Adobo Atay', 'price' => 40, 'productImage' => 'adobo_atay.jpg', 'is_available' => 1],
-            ['productID' => 0, 'productname' => 'Chicken Curry', 'price' => 40, 'productImage' => 'chicken_curry.jpg', 'is_available' => 1],
-            ['productID' => 0, 'productname' => 'Chicken Teriyaki', 'price' => 40, 'productImage' => 'chicken_teriyaki.jpg', 'is_available' => 1],
-            ['productID' => 0, 'productname' => 'Pork BBQ', 'price' => 40, 'productImage' => 'pork_bbq.jpg', 'is_available' => 1],
-            ['productID' => 0, 'productname' => 'Fried Chicken', 'price' => 40, 'productImage' => 'fried_chicken.jpg', 'is_available' => 1],
-            ['productID' => 0, 'productname' => 'Tortang Talong', 'price' => 35, 'productImage' => 'tortang_talong.jpg', 'is_available' => 1],
-            ['productID' => 0, 'productname' => 'Chicken Buffalo', 'price' => 40, 'productImage' => 'chicken_buffalo.jpg', 'is_available' => 1],
-        ];
-        // Merge: Hardcoded first, then DB items
-        $cat_items[$key] = array_merge($hardcoded_ulam, $db_items);
-    } else {
-        $cat_items[$key] = $db_items;
-    }
+    // ✅ REMOVED: No more hardcoded items! Only use database items.
+    $cat_items[$key] = $db_items;
 }
 
 // ============ STATS ============
@@ -313,14 +299,12 @@ $recent_orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u 
                                 <div class="item-list">
                                     <?php foreach ($cat_items[$key] as $item): 
                                         $is_visible = (bool)$item['is_available'];
-                                        $is_hardcoded = ($item['productID'] == 0);
                                     ?>
                                     <div class="item-card <?=$is_visible?'':'hidden-item'?>">
                                         <div class="item-status-badge <?=$is_visible?'badge-visible':'badge-hidden'?>">
                                             <?=$is_visible?'Visible':'Hidden'?>
                                         </div>
                                         
-                                        <?php if (!$is_hardcoded): ?>
                                         <div class="card-actions">
                                             <form method="POST" style="display:inline;">
                                                 <input type="hidden" name="product_id" value="<?=$item['productID']?>">
@@ -339,12 +323,11 @@ $recent_orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u 
                                                 <input type="hidden" name="delete_item" value="1">
                                             </form>
                                         </div>
-                                        <?php endif; ?>
 
-                                        <img src="../images/<?=$cat['folder']?>/<?=$item['productImage']?>" alt="<?=htmlspecialchars($item['productname'])?>" onerror="this.src='https://via.placeholder.com/160x120?text=No+Image'">
+                                        <img src="../images/<?=$item['productImage']?>" alt="<?=htmlspecialchars($item['productname'])?>" onerror="this.src='https://via.placeholder.com/160x120?text=No+Image'">
                                         <div class="item-card-body">
                                             <div class="item-card-name"><?=htmlspecialchars($item['productname'])?></div>
-                                            <div class="item-card-price">₱<?=number_format($item['price'],2)?></div>
+                                            <div class="item-card-price"><?=number_format($item['price'],2)?></div>
                                         </div>
                                     </div>
                                     <?php endforeach; ?>
