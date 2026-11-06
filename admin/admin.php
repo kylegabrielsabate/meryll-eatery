@@ -10,15 +10,15 @@ $adminName = $_SESSION['username'];
 $message = ""; $msg_type = "";
 $active_tab = $_GET['tab'] ?? 'ulam';
 
-// ✅ FIXED: Correct folder mappings for your GitHub structure
+// ✅ SIMPLIFIED: No subfolders. Everything looks in the main 'images' folder.
 $cat_map = [
-    'ulam' => ['id' => 1, 'name' => 'Ulam', 'folder' => 'ulam', 'use_webcam' => true],
-    'meryenda' => ['id' => 2, 'name' => 'Meryenda', 'folder' => 'meryenda', 'use_webcam' => false],
-    'candies' => ['id' => 3, 'name' => 'Candies', 'folder' => 'candies', 'use_webcam' => false],
-    'coffee' => ['id' => 4, 'name' => 'Coffee', 'folder' => 'drinks', 'use_webcam' => false],
-    'drinks' => ['id' => 5, 'name' => 'Drinks', 'folder' => 'drinks', 'use_webcam' => false],
-    'noodles' => ['id' => 6, 'name' => 'Noodles', 'folder' => 'noodles', 'use_webcam' => false],
-    'essentials' => ['id' => 7, 'name' => 'Essentials', 'folder' => 'essentials', 'use_webcam' => false],
+    'ulam' => ['id' => 1, 'name' => 'Ulam', 'folder' => '', 'use_webcam' => true],
+    'meryenda' => ['id' => 2, 'name' => 'Meryenda', 'folder' => '', 'use_webcam' => false],
+    'candies' => ['id' => 3, 'name' => 'Candies', 'folder' => '', 'use_webcam' => false],
+    'coffee' => ['id' => 4, 'name' => 'Coffee', 'folder' => '', 'use_webcam' => false],
+    'drinks' => ['id' => 5, 'name' => 'Drinks', 'folder' => '', 'use_webcam' => false],
+    'noodles' => ['id' => 6, 'name' => 'Noodles', 'folder' => '', 'use_webcam' => false],
+    'essentials' => ['id' => 7, 'name' => 'Essentials', 'folder' => '', 'use_webcam' => false],
 ];
 
 // ============ HANDLE ADD ITEM ============
@@ -29,7 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     else {
         $name = $con->real_escape_string(trim($_POST['item_name']));
         $price = (float)$_POST['item_price'];
-        $target_dir = "../images/" . $cat['folder'] . "/";
+        // ✅ FIXED: Save directly to main images folder
+        $target_dir = "../images/";
         if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
         
         $image_name = ""; $upload_ok = 1;
@@ -92,17 +93,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_item'])) {
 // ============ HANDLE DELETE ITEM ============
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_item'])) {
     $id = (int)$_POST['product_id'];
-    $tab = $_POST['tab'] ?? 'ulam';
-    $cat = $cat_map[$tab] ?? null;
     
-    if ($cat && $id > 0) {
-        $stmt = $con->prepare("SELECT productImage FROM products WHERE productID = ? AND categoryID = ?");
-        $stmt->bind_param("ii", $id, $cat['id']);
+    if ($id > 0) {
+        $stmt = $con->prepare("SELECT productImage FROM products WHERE productID = ?");
+        $stmt->bind_param("i", $id);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
         
         if ($row && !empty($row['productImage'])) {
-            $file = "../images/" . $cat['folder'] . "/" . $row['productImage'];
+            // ✅ FIXED: Delete from main images folder
+            $file = "../images/" . $row['productImage'];
             if (file_exists($file)) @unlink($file);
         }
         
@@ -267,7 +267,7 @@ $recent_orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u 
 
             <div class="stats-grid">
                 <div class="stat-card"><div class="stat-icon red"><i class="fas fa-shopping-bag"></i></div><div class="stat-info"><h3>Today's Orders</h3><p><?=$stats['total_orders']?></p></div></div>
-                <div class="stat-card"><div class="stat-icon dark"><i class="fas fa-coins"></i></div><div class="stat-info"><h3>Today's Revenue</h3><p><?=number_format($stats['total_revenue'],2)?></p></div></div>
+                <div class="stat-card"><div class="stat-icon dark"><i class="fas fa-coins"></i></div><div class="stat-info"><h3>Today's Revenue</h3><p>₱<?=number_format($stats['total_revenue'],2)?></p></div></div>
                 <div class="stat-card"><div class="stat-icon coral"><i class="fas fa-users"></i></div><div class="stat-info"><h3>Total Customers</h3><p><?=$stats['total_customers']?></p></div></div>
             </div>
 
@@ -360,10 +360,11 @@ $recent_orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u 
                                             </form>
                                         </div>
 
-                                        <img src="../images/<?=$cat['folder']?>/<?=$item['productImage']?>" alt="<?=htmlspecialchars($item['productname'])?>" onerror="this.src='https://via.placeholder.com/160x120?text=No+Image'">
+                                        <!-- ✅ FIXED: Looks directly in main images folder -->
+                                        <img src="../images/<?=$item['productImage']?>" alt="<?=htmlspecialchars($item['productname'])?>" onerror="this.src='https://via.placeholder.com/160x120?text=No+Image'">
                                         <div class="item-card-body">
                                             <div class="item-card-name"><?=htmlspecialchars($item['productname'])?></div>
-                                            <div class="item-card-price"><?=number_format($item['price'],2)?></div>
+                                            <div class="item-card-price">₱<?=number_format($item['price'],2)?></div>
                                         </div>
                                     </div>
                                     <?php endforeach; ?>
