@@ -119,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_item'])) {
 // ============ FETCH ITEMS ============
 $cat_items = [];
 foreach ($cat_map as $key => $cat) {
-    $res = $con->prepare("SELECT productID, productname, price, productImage, is_available FROM products WHERE categoryID = ? ORDER BY productID DESC");
+       $res = $con->prepare("SELECT productID, productname, price, productImage, is_available FROM products WHERE categoryID = ? ORDER BY productID ASC");
     $res->bind_param("i", $cat['id']);
     $res->execute();
     $cat_items[$key] = $res->get_result()->fetch_all(MYSQLI_ASSOC);
