@@ -1,46 +1,47 @@
 <?php
-// ✅ PHPMailer Classes (Must be at the top!)
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-// Load Composer autoloader immediately
-require_once __DIR__ . '/vendor/autoload.php';
-
 // Base URL from Render Environment Variables
 define('BASE_URL', trim(getenv('BASE_URL')) ?: 'https://meryll-eatery.onrender.com/user');
 
-// ✅ SECURE: Read from Environment Variables
-define('SMTP_HOST', 'smtp.gmail.com');
-define('SMTP_PORT', 587);
-define('SMTP_USER', getenv('SMTP_USER') ?: 'placeholder@gmail.com'); 
-define('SMTP_PASS', getenv('SMTP_PASS') ?: 'placeholder_app_password');      
-define('SMTP_FROM_NAME', 'Meryll Eatery');
+// ✅ SECURE: Brevo API Key (HTTPS, works on Render free tier)
+define('BREVO_API_KEY', getenv('BREVO_API_KEY') ?: 'placeholder_api_key');
+define('BREVO_FROM_EMAIL', getenv('BREVO_FROM_EMAIL') ?: 'your-email@gmail.com');
+define('BREVO_FROM_NAME', 'Meryll Eatery');
 
 function sendMail($toEmail, $subject, $htmlBody) {
-    $mail = new PHPMailer(true);
-    try {
-        $mail->isSMTP();
-        $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = true;
-        $mail->Username   = SMTP_USER;
-        $mail->Password   = SMTP_PASS;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = SMTP_PORT;
-        
-        // ✅ FIX: Set timeout to 10 seconds so it doesn't hang forever
-        $mail->Timeout = 10; 
+    $url = 'https://api.brevo.com/v3/smtp/email';
+    
+    $data = [
+        'sender' => [
+            'name' => BREVO_FROM_NAME,
+            'email' => BREVO_FROM_EMAIL
+        ],
+        'to' => [
+            ['email' => $toEmail]
+        ],
+        'subject' => $subject,
+        'htmlContent' => $htmlBody
+    ];
 
-        $mail->setFrom(SMTP_USER, SMTP_FROM_NAME);
-        $mail->addAddress($toEmail);
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'api-key: ' . BREVO_API_KEY,
+        'Content-Type: application/json',
+        'Accept: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body    = $htmlBody;
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
 
-        $mail->send();
+    if ($httpCode >= 200 && $httpCode < 300) {
         return ['success' => true];
-    } catch (Exception $e) {
-        return ['success' => false, 'message' => 'Mailer Error: ' . $mail->ErrorInfo];
+    } else {
+        return ['success' => false, 'message' => 'Brevo API Error: HTTP ' . $httpCode . ($error ? ' - ' . $error : '')];
     }
 }
 ?>
