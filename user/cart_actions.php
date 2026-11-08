@@ -9,7 +9,8 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
+// ✅ FORCE USER ID TO INTEGER TO FIX DATABASE SAVING ISSUES
+$user_id = (int)$_SESSION['user_id'];
 
 // Initialize cart from database if session is empty
 if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
@@ -23,8 +24,9 @@ $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 // ✅ Load cart from users table (JSON)
 function loadCartFromDB($con, $user_id) {
+    $uid = (int)$user_id; // Ensure integer for database
     $stmt = $con->prepare("SELECT cart_data FROM users WHERE user_id = ?");
-    $stmt->bind_param("i", $user_id);
+    $stmt->bind_param("i", $uid);
     $stmt->execute();
     $result = $stmt->get_result();
     
@@ -40,16 +42,17 @@ function loadCartFromDB($con, $user_id) {
 
 // ✅ Save entire session cart to users table (JSON)
 function saveCartToDB($con, $user_id, $cart) {
+    $uid = (int)$user_id; // Ensure integer for database
     $cartJson = json_encode($cart);
+    
     $stmt = $con->prepare("UPDATE users SET cart_data = ? WHERE user_id = ?");
-    $stmt->bind_param("si", $cartJson, $user_id);
+    $stmt->bind_param("si", $cartJson, $uid);
     $stmt->execute();
 }
 
 function checkItemAvailability($con, $cart) {
     $unavailable = [];
     foreach ($cart as $key => $item) {
-        // Only check availability for real products (productID > 0)
         if (isset($item['productID']) && $item['productID'] > 0) {
             $stmt = $con->prepare("SELECT is_available FROM products WHERE productID = ?");
             $stmt->bind_param("i", $item['productID']);
@@ -143,7 +146,6 @@ switch ($action) {
         break;
 
     case 'get':
-        // Reload from DB to ensure we have the latest state
         $_SESSION['cart'] = [];
         loadCartFromDB($con, $user_id);
         
@@ -249,7 +251,7 @@ switch ($action) {
             $con->commit();
             
             $_SESSION['cart'] = [];
-            saveCartToDB($con, $user_id, []); // Clear cart in DB
+            saveCartToDB($con, $user_id, []);
 
             echo json_encode([
                 'success' => true, 
@@ -257,4 +259,13 @@ switch ($action) {
                 'order_id' => $newOrderId
             ]);
 
-       
+        } catch (Exception $e) {
+            if ($con) $con->rollback();
+            echo json_encode(['success' => false, 'message' => 'Checkout failed: ' . $e->getMessage()]);
+        }
+        break;
+
+    default:
+        echo json_encode(['success' => false, 'message' => 'Invalid action.']);
+}
+?>
