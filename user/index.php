@@ -41,7 +41,7 @@ $rice_meals_list = [
     ['name'=>'Meat to gulay w/o rice','price'=>65,'has_drink'=>false,'has_rice'=>false,'type'=>'gulay'],
 ];
 
-// --- BREAKFAST SIDES (hardcoded) ---
+// --- BREAKFAST SIDES (Only these 4 for Silog) ---
 $breakfast_sides = [
     ['name'=>'Hotdog','price'=>15,'image'=>'hotdog.jpg','folder'=>'ulam'],
     ['name'=>'Egg','price'=>15,'image'=>'egg.jpg','folder'=>'ulam'],
@@ -295,12 +295,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 
         <?php if($active_cat=='all'||$active_cat=='breakfast'): ?>
         <div class="category-section">
-            <div class="category-title"><i class="bi bi-cup-hot"></i> Breakfast</div>
+            <div class="category-title"><i class="bi bi-cup-hot"></i> Breakfast Silog</div>
             <div class="image-grid">
                 <div class="img-card" onclick="openBreakfastModal()" style="cursor:pointer">
-                    <div class="img-card-img-wrapper"><img src="../images/ulam/breakfast.jpg" alt="Breakfast Set" onerror="this.src='https://via.placeholder.com/200?text=Breakfast'"></div>
+                    <div class="img-card-img-wrapper"><img src="../images/ulam/breakfast.jpg" alt="Breakfast Silog" onerror="this.src='https://via.placeholder.com/200?text=Breakfast'"></div>
                     <div class="img-card-info">
-                        <div class="img-card-name">Breakfast Set</div>
+                        <div class="img-card-name">Breakfast Silog</div>
                         <div class="img-card-price">₱15 rice + sides</div>
                         <div style="font-size:.75rem;color:var(--text-muted)">Click to customize</div>
                     </div>
@@ -444,15 +444,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </div>
 
-<!-- ============ BREAKFAST MODAL ============ -->
+<!-- ============ BREAKFAST MODAL (UPDATED) ============ -->
 <div class="modal-overlay" id="breakfastModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2><i class="bi bi-cup-hot"></i> Customize Breakfast</h2>
+            <h2><i class="bi bi-cup-hot"></i> Customize Breakfast Silog</h2>
             <button class="modal-close" onclick="closeModal('breakfastModal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <div class="modal-section">
-            <h3>1. Choose Your Sides</h3>
+            <h3>1. Choose Your Breakfast Sides</h3>
             <div class="modal-images" id="breakfastSides">
                 <?php foreach($breakfast_sides as $item): ?>
                 <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastSide(this)">
@@ -473,6 +473,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
                 </div>
             </div>
             <div class="rice-price-note">Rice is ₱15 and is automatically added to your total.</div>
+        </div>
+        <div class="modal-section" id="breakfastDrinkSection" style="display:none">
+            <h3>3. Add a Drink? (Optional)</h3>
+            <div class="modal-images" id="breakfastDrinkSelection">
+                <?php foreach($drinks_items as $item): ?>
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastDrink(this)">
+                    <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
+                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <div style="margin-top:10px;text-align:center">
+                <button type="button" class="btn" style="background:#6c757d;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer" onclick="skipBreakfastDrink()">Skip Drink & Add to Cart</button>
+            </div>
         </div>
         <div class="modal-footer">
             <div class="modal-total" id="breakfastTotal">₱15.00</div>
@@ -537,7 +551,7 @@ const riceMeals = <?=json_encode($rice_meals_list)?>;
 
 let selectedUlam=[], selectedRiceType='white', selectedDrink='', currentMeal=null;
 let selectedCustomUlam=[], customRiceType='white';
-let selectedSides=[], breakfastRice='white';
+let selectedSides=[], breakfastRice='white', selectedBreakfastDrink=''; // ✅ Added selectedBreakfastDrink
 let qtyModalCard=null, qtyModalName='', qtyModalPrice=0, qtyModalQty=1;
 let customAmountCard=null, customAmountName='', customAmountPrice=0;
 
@@ -673,7 +687,6 @@ function toggleCustomUlam(el){
         }
         else showToast('Max 3 ulam!');
     }
-    // ✅ Total = Rice (₱15) + sum of selected ulam prices from DB
     let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+u.price,0);
     document.getElementById('customOrderTotal').textContent='₱'+total.toFixed(2);
     document.getElementById('btnConfirmCustom').disabled = selectedCustomUlam.length===0;
@@ -688,7 +701,6 @@ function selectCustomRiceType(el){
 
 function confirmCustomOrder(){
     if(selectedCustomUlam.length===0) return;
-    // ✅ Total includes rice price
     let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+u.price,0);
     let desc = 'Custom Rice ('+selectedCustomUlam.map(u=>u.name).join(', ')+', '+(customRiceType==='fried'?'Fried Rice':'White Rice')+')';
     addToCart(desc, total);
@@ -697,37 +709,78 @@ function confirmCustomOrder(){
     showToast('✅ Added to cart!');
 }
 
+// ✅ FIXED: Breakfast modal only shows breakfast sides + optional drink
 function openBreakfastModal(){
-    selectedSides=[]; breakfastRice='white';
+    selectedSides=[]; breakfastRice='white'; selectedBreakfastDrink='';
     document.getElementById('breakfastTotal').textContent='₱'+RICE_PRICE.toFixed(2);
     document.getElementById('btnConfirmBreakfast').disabled=true;
     document.querySelectorAll('#breakfastSides .modal-img-option').forEach(e=>e.classList.remove('selected'));
     document.querySelectorAll('#breakfastModal .rice-type-option').forEach(e=>e.classList.remove('selected'));
     document.querySelector('#breakfastModal .rice-type-option[data-type="white"]').classList.add('selected');
+    document.querySelectorAll('#breakfastDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
+    document.getElementById('breakfastDrinkSection').style.display='none';
     document.getElementById('breakfastModal').classList.add('active');
 }
+
 function toggleBreakfastSide(el){
     const name = el.dataset.name, price = parseFloat(el.dataset.price);
-    if(el.classList.contains('selected')){ el.classList.remove('selected'); selectedSides=selectedSides.filter(s=>s.name!==name); }
-    else{ el.classList.add('selected'); selectedSides.push({name,price}); }
-    let total = RICE_PRICE + selectedSides.reduce((s,x)=>s+x.price,0);
-    document.getElementById('breakfastTotal').textContent='₱'+total.toFixed(2);
+    if(el.classList.contains('selected')){ 
+        el.classList.remove('selected'); 
+        selectedSides=selectedSides.filter(s=>s.name!==name); 
+    }
+    else{ 
+        el.classList.add('selected'); 
+        selectedSides.push({name,price}); 
+        document.getElementById('breakfastDrinkSection').style.display='block';
+    }
+    updateBreakfastTotal();
     document.getElementById('btnConfirmBreakfast').disabled = selectedSides.length===0;
 }
+
+function toggleBreakfastDrink(el){
+    document.querySelectorAll('#breakfastDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedBreakfastDrink = {
+        name: el.dataset.name,
+        price: parseFloat(el.dataset.price)
+    };
+    updateBreakfastTotal();
+}
+
+function skipBreakfastDrink(){
+    document.querySelectorAll('#breakfastDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
+    selectedBreakfastDrink = '';
+    updateBreakfastTotal();
+    confirmBreakfast(); // Auto-adds to cart when skipped
+}
+
+function updateBreakfastTotal(){
+    let total = RICE_PRICE + selectedSides.reduce((s,x)=>s+x.price,0);
+    if(selectedBreakfastDrink){
+        total += selectedBreakfastDrink.price;
+    }
+    document.getElementById('breakfastTotal').textContent='₱'+total.toFixed(2);
+}
+
 function selectBreakfastRice(el){
     if(el.dataset.type==='fried' && <?=$_SESSION['fried_rice_stock']?><=0){ showToast('Fried rice sold out!'); return; }
     breakfastRice = el.dataset.type;
     document.querySelectorAll('#breakfastModal .rice-type-option').forEach(e=>e.classList.remove('selected'));
     el.classList.add('selected');
 }
+
 function confirmBreakfast(){
     if(selectedSides.length===0) return;
     let total = RICE_PRICE + selectedSides.reduce((s,x)=>s+x.price,0);
-    let desc = 'Breakfast ('+selectedSides.map(s=>s.name).join(', ')+', '+(breakfastRice==='fried'?'Fried Rice':'White Rice')+')';
+    let desc = 'Breakfast Silog ('+selectedSides.map(s=>s.name).join(', ')+', '+(breakfastRice==='fried'?'Fried Rice':'White Rice')+')';
+    if(selectedBreakfastDrink){
+        desc += ' + ' + selectedBreakfastDrink.name;
+        total += selectedBreakfastDrink.price;
+    }
     addToCart(desc, total);
     if(breakfastRice==='fried') deductFriedRice();
     closeModal('breakfastModal');
-    showToast('✅ Added to cart!');
+    showToast('✅ Breakfast added to cart!');
 }
 
 function openQtyModal(card){
