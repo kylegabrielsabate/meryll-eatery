@@ -30,6 +30,16 @@ function isValidKey($key) {
     return preg_match('/^[a-f0-9]{32}$/', $key);
 }
 
+// Generate unique order number like "ME-20261108-001"
+function generateOrderNumber($con) {
+    $date = date('Ymd');
+    $prefix = 'ME-' . $date . '-';
+    $result = $con->query("SELECT COUNT(*) as cnt FROM orders WHERE created_at >= CURDATE()");
+    $row = $result->fetch_assoc();
+    $count = ($row['cnt'] ?? 0) + 1;
+    return $prefix . str_pad($count, 3, '0', STR_PAD_LEFT);
+}
+
 switch ($action) {
     case 'add':
         $name  = trim($_POST['name'] ?? '');
@@ -85,7 +95,7 @@ switch ($action) {
         else { echo json_encode(['success' => false]); }
         break;
 
-    // ✅ UPDATED CHECKOUT LOGIC
+    // ✅ CHECKOUT - MANUAL ID GENERATION (Fixes TiDB Auto Increment Issue)
     case 'checkout':
         if (empty($_SESSION['cart'])) {
             echo json_encode(['success' => false, 'message' => 'Your cart is empty.']);
@@ -96,34 +106,62 @@ switch ($action) {
         $total_amount = cartTotalPrice($_SESSION['cart']);
         $status = 'Pending';
         
-        // Get new fields from form
-        $order_type = $_POST['order_type'] ?? 'Pick-up';
+        // Map "Delivery" to "Delivered" to match your database enum exactly
+        $order_type_raw = $_POST['order_type'] ?? 'Pick-up';
+        $order_type = ($order_type_raw === 'Delivery') ? 'Delivered' : $order_type_raw;
+        
         $pickup_time = $_POST['pickup_time'] ?? '';
         $order_note = $_POST['order_note'] ?? '';
+        $order_number = generateOrderNumber($con);
 
-        $con->begin_transaction();
         try {
-            // Insert Order with new columns
-            $stmt = $con->prepare("INSERT INTO orders (user_id, total_amount, status, order_type, pickup_time, order_note, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-            $stmt->bind_param("idssss", $user_id, $total_amount, $status, $order_type, $pickup_time, $order_note);
-            $stmt->execute();
-            $order_id = $con->insert_id;
-
-            // Insert Items
-            $stmt_item = $con->prepare("INSERT INTO order_items (order_id, item_name, price, quantity, subtotal) VALUES (?, ?, ?, ?, ?)");
-            foreach ($_SESSION['cart'] as $item) {
-                $subtotal = $item['price'] * $item['quantity'];
-                $stmt_item->bind_param("isddd", $order_id, $item['name'], $item['price'], $item['quantity'], $subtotal);
-                $stmt_item->execute();
+            $con->begin_transaction();
+            
+            // 1. MANUALLY FIND THE NEXT ORDER ID
+            $maxOrderId = 0;
+            $res = $con->query("SELECT MAX(order_id) as max_id FROM orders");
+            if ($row = $res->fetch_assoc()) {
+                $maxOrderId = $row['max_id'] ? $row['max_id'] : 0;
             }
+            $newOrderId = $maxOrderId + 1;
 
+            // 2. INSERT ORDER WITH SPECIFIC ID
+            $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, pickup_time, order_note, total_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            if (!$stmt) throw new Exception("Prepare failed: " . $con->error);
+            
+            // Note: 'd' is for double/decimal (total_amount), 's' for string, 'i' for int
+            $stmt->bind_param("iissssds", $newOrderId, $user_id, $order_number, $order_type, $pickup_time, $order_note, $total_amount, $status);
+            $stmt->execute();
+            
+            // 3. MANUALLY FIND THE NEXT ORDER ITEM ID
+            $maxItemId = 0;
+            $res2 = $con->query("SELECT MAX(order_item_id) as max_id FROM order_items");
+            if ($row2 = $res2->fetch_assoc()) {
+                $maxItemId = $row2['max_id'] ? $row2['max_id'] : 0;
+            }
+            $newItemId = $maxItemId + 1;
+
+            // 4. INSERT ITEMS WITH SPECIFIC IDs
+            $stmt_item = $con->prepare("INSERT INTO order_items (order_item_id, order_id, item_name, quantity, price) VALUES (?, ?, ?, ?, ?)");
+            if (!$stmt_item) throw new Exception("Prepare items failed: " . $con->error);
+            
+            foreach ($_SESSION['cart'] as $item) {
+                $stmt_item->bind_param("iisdd", $newItemId, $newOrderId, $item['name'], $item['quantity'], $item['price']);
+                $stmt_item->execute();
+                $newItemId++; // Increment for the next item in the cart
+            }
+            
             $con->commit();
-            $_SESSION['cart'] = []; // Clear cart
+            $_SESSION['cart'] = [];
 
-            echo json_encode(['success' => true, 'message' => 'Order placed successfully!', 'order_id' => $order_id]);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Order placed successfully! Order #' . $order_number, 
+                'order_id' => $newOrderId
+            ]);
 
         } catch (Exception $e) {
-            $con->rollback();
+            if ($con) $con->rollback();
             echo json_encode(['success' => false, 'message' => 'Checkout failed: ' . $e->getMessage()]);
         }
         break;
