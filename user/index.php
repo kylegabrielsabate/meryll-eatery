@@ -249,12 +249,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </aside>
 
-<!-- ✅ NEW: Dark overlay that closes sidebar when clicked -->
+<!-- ✅ Dark overlay that closes sidebar when clicked -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
 <main class="main-content">
     <header class="top-header">
-        <!-- ✅ UPDATED: Opens sidebar AND overlay -->
         <button class="mobile-toggle" onclick="document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('active');"><i class="bi bi-list"></i></button>
         <div class="search-bar"><i class="bi bi-search"></i><input type="text" placeholder="Search menu..." id="searchInput"></div>
         <a href="cart.php" class="cart-btn"><i class="bi bi-basket3-fill"></i><span class="cart-badge" id="cartBadge"><?=$cart_count>0?$cart_count:'0'?></span></a>
@@ -416,18 +415,18 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             <button class="modal-close" onclick="closeModal('customOrderModal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <div class="modal-section">
-            <h3>1. Select 1-3 Ulam (Meat ₱40 / Gulay ₱35 each)</h3>
+            <h3>1. Select 1-3 Ulam (Prices shown below)</h3>
             <div class="modal-images" id="customUlamSelection">
                 <?php foreach($ulam_items as $item): ?>
-                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-type="<?=$item['type'] ?? 'meat'?>" onclick="toggleCustomUlam(this)">
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleCustomUlam(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
-                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=($item['type'] ?? 'meat')=='meat'?40:35?></div>
+                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div>
                 </div>
                 <?php endforeach; ?>
             </div>
         </div>
         <div class="modal-section">
-            <h3>2. Choose Rice Type</h3>
+            <h3>2. Choose Rice Type (₱15)</h3>
             <div class="rice-type-selector">
                 <div class="rice-type-option selected" data-type="white" onclick="selectCustomRiceType(this)">
                     <div class="rice-icon">🍚</div><div class="rice-name">White Rice</div>
@@ -436,6 +435,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
                     <div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited: <?=$_SESSION['fried_rice_stock']?> left</div>
                 </div>
             </div>
+            <div class="rice-price-note">Rice is ₱15 and is automatically added to your total.</div>
         </div>
         <div class="modal-footer">
             <div class="modal-total" id="customOrderTotal">₱0.00</div>
@@ -533,7 +533,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 
 <script>
 const RICE_PRICE = 15;
-const ULAM_PRICE = { meat: 40, gulay: 35 };
 const riceMeals = <?=json_encode($rice_meals_list)?>;
 
 let selectedUlam=[], selectedRiceType='white', selectedDrink='', currentMeal=null;
@@ -542,7 +541,7 @@ let selectedSides=[], breakfastRice='white';
 let qtyModalCard=null, qtyModalName='', qtyModalPrice=0, qtyModalQty=1;
 let customAmountCard=null, customAmountName='', customAmountPrice=0;
 
-// ✅ NEW: Function to close sidebar when clicking overlay
+// ✅ Function to close sidebar when clicking overlay
 function closeSidebar() {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('active');
@@ -650,10 +649,10 @@ function confirmRiceMeal(){
     showToast('✅ Added to cart!');
 }
 
-// ✅ FIXED: Custom Order Modal now includes Rice Price in total
+// ✅ FIXED: Custom Order Modal uses actual database prices + rice
 function openCustomOrderModal(){
     selectedCustomUlam=[]; customRiceType='white';
-    document.getElementById('customOrderTotal').textContent='₱'+RICE_PRICE.toFixed(2); // Shows base rice price
+    document.getElementById('customOrderTotal').textContent='₱'+RICE_PRICE.toFixed(2);
     document.getElementById('btnConfirmCustom').disabled=true;
     document.querySelectorAll('#customUlamSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     document.querySelectorAll('#customOrderModal .rice-type-option').forEach(e=>e.classList.remove('selected'));
@@ -662,14 +661,20 @@ function openCustomOrderModal(){
 }
 
 function toggleCustomUlam(el){
-    const name = el.dataset.name, type = el.dataset.type || 'meat';
-    if(el.classList.contains('selected')){ el.classList.remove('selected'); selectedCustomUlam=selectedCustomUlam.filter(u=>u.name!==name); }
+    const name = el.dataset.name, price = parseFloat(el.dataset.price);
+    if(el.classList.contains('selected')){ 
+        el.classList.remove('selected'); 
+        selectedCustomUlam=selectedCustomUlam.filter(u=>u.name!==name); 
+    }
     else{
-        if(selectedCustomUlam.length<3){ el.classList.add('selected'); selectedCustomUlam.push({name,type}); }
+        if(selectedCustomUlam.length<3){ 
+            el.classList.add('selected'); 
+            selectedCustomUlam.push({name, price}); 
+        }
         else showToast('Max 3 ulam!');
     }
-    // ✅ FIXED: Added RICE_PRICE to the calculation
-    let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+ULAM_PRICE[u.type],0);
+    // ✅ Total = Rice (₱15) + sum of selected ulam prices from DB
+    let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+u.price,0);
     document.getElementById('customOrderTotal').textContent='₱'+total.toFixed(2);
     document.getElementById('btnConfirmCustom').disabled = selectedCustomUlam.length===0;
 }
@@ -683,8 +688,8 @@ function selectCustomRiceType(el){
 
 function confirmCustomOrder(){
     if(selectedCustomUlam.length===0) return;
-    // ✅ FIXED: Added RICE_PRICE to the final total
-    let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+ULAM_PRICE[u.type],0);
+    // ✅ Total includes rice price
+    let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+u.price,0);
     let desc = 'Custom Rice ('+selectedCustomUlam.map(u=>u.name).join(', ')+', '+(customRiceType==='fried'?'Fried Rice':'White Rice')+')';
     addToCart(desc, total);
     if(customRiceType==='fried') deductFriedRice();
