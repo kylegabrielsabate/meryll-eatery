@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
                         </p>
                     </div>
                     <div class='footer'>
-                        <p><b>Kuya Batas Canteen</b><br>
+                        <p><b>Meryll Eatery</b><br>
                         Serving delicious meals with care!<br>
                         This is an automated confirmation email.</p>
                     </div>
@@ -232,7 +232,7 @@ if (empty($items) && !$order_success) { header('Location: cart.php'); exit(); }
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Checkout - Kuya Batas Canteen</title>
+<title>Checkout - Meryll Eatery</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
