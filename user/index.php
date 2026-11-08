@@ -13,25 +13,22 @@ foreach ($_SESSION['cart'] as $item) $cart_count += $item['quantity'];
 
 function slugify($s){ return trim(preg_replace('/[^a-z0-9]+/','_', strtolower($s)), '_'); }
 
-// ✅ SMART IMAGE FINDER: Searches all folders to find the image
+// ✅ SMART IMAGE FINDER
 function imgTag($folder, $image){ 
     if (empty($image) || $image === 'placeholder.jpg') {
         return "https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image";
     }
-    
     $folders = [$folder, 'meryenda', 'snacks', 'candies', 'drinks', 'noodles', 'essentials', 'ulam', ''];
-    
     foreach ($folders as $f) {
         $path = __DIR__ . "/../images/" . ($f ? $f . "/" : "") . $image;
         if (file_exists($path)) {
             return "../images/" . ($f ? $f . "/" : "") . $image;
         }
     }
-    
     return "https://via.placeholder.com/200x160/8B0000/ffffff?text=" . urlencode(str_replace(' ', '+', $image));
 }
 
-// --- RICE MEALS (hardcoded combos) ---
+// --- RICE MEALS ---
 $rice_meals_list = [
     ['name'=>'Meat to meat with rice & drinks','price'=>95,'has_drink'=>true,'has_rice'=>true,'type'=>'meat'],
     ['name'=>'Meat to meat with rice','price'=>85,'has_drink'=>false,'has_rice'=>true,'type'=>'meat'],
@@ -41,7 +38,7 @@ $rice_meals_list = [
     ['name'=>'Meat to gulay w/o rice','price'=>65,'has_drink'=>false,'has_rice'=>false,'type'=>'gulay'],
 ];
 
-// --- BREAKFAST SIDES (Only these 4 for Silog) ---
+// --- BREAKFAST SIDES ---
 $breakfast_sides = [
     ['name'=>'Hotdog','price'=>15,'image'=>'hotdog.jpg','folder'=>'ulam'],
     ['name'=>'Egg','price'=>15,'image'=>'egg.jpg','folder'=>'ulam'],
@@ -50,7 +47,7 @@ $breakfast_sides = [
 ];
 $RICE_PRICE = 15;
 
-// --- ACCESORIES (hardcoded) ---
+// --- ACCESORIES ---
 $accesories_items = [
     ['name'=>'Ribbon','price'=>5,'image'=>'ribbon.jpg','folder'=>'accesories'],
 ];
@@ -89,6 +86,11 @@ if ($res) {
         }
     }
 }
+
+// ✅ FILTER: Remove breakfast items from the Custom Rice Meal modal
+$custom_ulam_items = array_filter($ulam_items, function($item) {
+    return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice']);
+});
 
 $active_cat = isset($_GET['cat']) ? $_GET['cat'] : 'all';
 
@@ -212,7 +214,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .toast{position:fixed;bottom:30px;right:30px;background:var(--brand-red);color:#fff;padding:14px 24px;border-radius:10px;font-weight:600;transform:translateY(100px);opacity:0;transition:all .3s;z-index:9999}
 .toast.show{transform:translateY(0);opacity:1}
 
-/* ✅ MOBILE SIDEBAR & OVERLAY FIX */
 .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99; transition: opacity 0.3s; }
 .sidebar-overlay.active { display: block; }
 
@@ -249,7 +250,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </aside>
 
-<!-- ✅ Dark overlay that closes sidebar when clicked -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
 <main class="main-content">
@@ -297,6 +297,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="category-section">
             <div class="category-title"><i class="bi bi-cup-hot"></i> Breakfast Silog</div>
             <div class="image-grid">
+                <!-- ✅ FIXED: Strictly calls openBreakfastModal() -->
                 <div class="img-card" onclick="openBreakfastModal()" style="cursor:pointer">
                     <div class="img-card-img-wrapper"><img src="../images/ulam/breakfast.jpg" alt="Breakfast Silog" onerror="this.src='https://via.placeholder.com/200?text=Breakfast'"></div>
                     <div class="img-card-info">
@@ -370,8 +371,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="modal-section">
             <h3 id="ulamStepTitle">1. Choose 1-3 Ulam</h3>
             <div class="modal-images" id="ulamSelection">
-                <?php foreach($ulam_items as $item): ?>
-                <div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" data-type="<?=$item['type'] ?? 'meat'?>" onclick="toggleUlam(this)">
+                <?php foreach($custom_ulam_items as $item): ?>
+                <div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" data-type="meat" onclick="toggleUlam(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div>
                 </div>
@@ -417,7 +418,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="modal-section">
             <h3>1. Select 1-3 Ulam (Prices shown below)</h3>
             <div class="modal-images" id="customUlamSelection">
-                <?php foreach($ulam_items as $item): ?>
+                <?php foreach($custom_ulam_items as $item): ?>
                 <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleCustomUlam(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div>
@@ -444,7 +445,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </div>
 
-<!-- ============ BREAKFAST MODAL (UPDATED) ============ -->
+<!-- ============ BREAKFAST MODAL ============ -->
 <div class="modal-overlay" id="breakfastModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -485,7 +486,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
                 <?php endforeach; ?>
             </div>
             <div style="margin-top:10px;text-align:center">
-                <button type="button" class="btn" style="background:#6c757d;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer" onclick="skipBreakfastDrink()">Skip Drink & Add to Cart</button>
+                <button type="button" style="background:#6c757d;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer" onclick="skipBreakfastDrink()">Skip Drink & Add to Cart</button>
             </div>
         </div>
         <div class="modal-footer">
@@ -551,11 +552,10 @@ const riceMeals = <?=json_encode($rice_meals_list)?>;
 
 let selectedUlam=[], selectedRiceType='white', selectedDrink='', currentMeal=null;
 let selectedCustomUlam=[], customRiceType='white';
-let selectedSides=[], breakfastRice='white', selectedBreakfastDrink=''; // ✅ Added selectedBreakfastDrink
+let selectedSides=[], breakfastRice='white', selectedBreakfastDrink='';
 let qtyModalCard=null, qtyModalName='', qtyModalPrice=0, qtyModalQty=1;
 let customAmountCard=null, customAmountName='', customAmountPrice=0;
 
-// ✅ Function to close sidebar when clicking overlay
 function closeSidebar() {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('active');
@@ -563,7 +563,6 @@ function closeSidebar() {
 
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
 function closeModal(id){document.getElementById(id).classList.remove('active')}
-function slugify(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')}
 
 function addToCart(name, price, qty){
     qty = qty || 1;
@@ -605,20 +604,16 @@ function openRiceMealModal(index){
     document.getElementById('btnConfirmRiceMeal').disabled = true;
     document.querySelectorAll('#ulamSelection .ulam-option').forEach(el=>{
         el.classList.remove('selected');
-        el.style.display = (currentMeal.type==='gulay' || el.dataset.type==='meat') ? '' : 'none';
     });
-    document.getElementById('ulamStepTitle').textContent = (currentMeal.type==='gulay') ? '1. Choose your Ulam (Meat + Gulay)' : '1. Choose your Meat Ulam';
     const riceSection = document.getElementById('riceTypeSection');
     if (currentMeal.has_rice) {
         riceSection.style.display = 'block';
-        document.getElementById('riceStepTitle').textContent = '2. Choose Rice Type';
     } else {
         riceSection.style.display = 'none';
     }
     const drinkSection = document.getElementById('drinkSelectionSection');
     if (currentMeal.has_drink) {
         drinkSection.style.display = 'block';
-        document.getElementById('drinkStepTitle').textContent = (currentMeal.has_rice ? '3' : '2') + '. Choose 1 Drink (Included)';
     } else {
         drinkSection.style.display = 'none';
     }
@@ -663,7 +658,6 @@ function confirmRiceMeal(){
     showToast('✅ Added to cart!');
 }
 
-// ✅ FIXED: Custom Order Modal uses actual database prices + rice
 function openCustomOrderModal(){
     selectedCustomUlam=[]; customRiceType='white';
     document.getElementById('customOrderTotal').textContent='₱'+RICE_PRICE.toFixed(2);
@@ -709,7 +703,7 @@ function confirmCustomOrder(){
     showToast('✅ Added to cart!');
 }
 
-// ✅ FIXED: Breakfast modal only shows breakfast sides + optional drink
+// ✅ FIXED: Breakfast modal strictly uses breakfast sides
 function openBreakfastModal(){
     selectedSides=[]; breakfastRice='white'; selectedBreakfastDrink='';
     document.getElementById('breakfastTotal').textContent='₱'+RICE_PRICE.toFixed(2);
@@ -751,7 +745,7 @@ function skipBreakfastDrink(){
     document.querySelectorAll('#breakfastDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     selectedBreakfastDrink = '';
     updateBreakfastTotal();
-    confirmBreakfast(); // Auto-adds to cart when skipped
+    confirmBreakfast();
 }
 
 function updateBreakfastTotal(){
