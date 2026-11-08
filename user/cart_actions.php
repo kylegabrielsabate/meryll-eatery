@@ -46,7 +46,7 @@ function loadCartFromDB($con, $user_id) {
     }
 }
 
-// Save entire cart to database
+// Save cart to database (Only saves items that have a real productID)
 function saveCartToDB($con, $user_id, $cart) {
     // Clear existing cart for this user
     $stmt = $con->prepare("DELETE FROM cart WHERE user_id = ?");
@@ -58,21 +58,22 @@ function saveCartToDB($con, $user_id, $cart) {
     $stmt = $con->prepare("INSERT INTO cart (user_id, productID, quantity) VALUES (?, ?, ?)");
     
     foreach ($cart as $item) {
-        $stmt->bind_param("iii", $user_id, $item['productID'], $item['quantity']);
-        $stmt->execute();
+        // ✅ FIX: Only save to DB if it has a valid productID (skip custom combos)
+        if (isset($item['productID']) && $item['productID'] > 0) {
+            $stmt->bind_param("iii", $user_id, $item['productID'], $item['quantity']);
+            $stmt->execute();
+        }
     }
 }
 
 // Check if items are still available
 function checkItemAvailability($con, $cart) {
     $unavailable = [];
-    
     foreach ($cart as $key => $item) {
         if (isset($item['is_available']) && $item['is_available'] == 0) {
             $unavailable[$key] = $item['name'];
         }
     }
-    
     return $unavailable;
 }
 
@@ -110,7 +111,8 @@ switch ($action) {
         
         if ($qty < 1) $qty = 1;
 
-        if (empty($name) || $price <= 0 || $productID <= 0) {
+        // ✅ FIX: Removed "|| $productID <= 0" so custom meals can be added
+        if (empty($name) || $price <= 0) {
             echo json_encode(['success' => false, 'message' => 'Invalid item.']);
             exit();
         }
@@ -140,9 +142,7 @@ switch ($action) {
             $_SESSION['cart'][$cartKey]['quantity'] += $change;
             if ($_SESSION['cart'][$cartKey]['quantity'] <= 0) unset($_SESSION['cart'][$cartKey]);
         }
-        
         saveCartToDB($con, $user_id, $_SESSION['cart']);
-        
         echo json_encode(['success' => true, 'total_items' => cartTotalItems($_SESSION['cart'])]);
         break;
 
@@ -151,18 +151,14 @@ switch ($action) {
         if (isValidKey($cartKey) && isset($_SESSION['cart'][$cartKey])) {
             unset($_SESSION['cart'][$cartKey]);
         }
-        
         saveCartToDB($con, $user_id, $_SESSION['cart']);
-        
         echo json_encode(['success' => true, 'total_items' => cartTotalItems($_SESSION['cart'])]);
         break;
 
     case 'get':
-        // Reload from DB to get latest availability status
         $_SESSION['cart'] = [];
         loadCartFromDB($con, $user_id);
         
-        // Check for unavailable items
         $unavailable = checkItemAvailability($con, $_SESSION['cart']);
         
         $items = [];
@@ -203,7 +199,6 @@ switch ($action) {
         break;
 
     case 'checkout':
-        // Reload from DB to check latest availability
         $_SESSION['cart'] = [];
         loadCartFromDB($con, $user_id);
         
@@ -212,7 +207,6 @@ switch ($action) {
             exit();
         }
 
-        // Check availability before checkout
         $unavailable = checkItemAvailability($con, $_SESSION['cart']);
         if (!empty($unavailable)) {
             echo json_encode([
@@ -266,7 +260,6 @@ switch ($action) {
             
             $con->commit();
             
-            // Clear cart from session AND database
             $_SESSION['cart'] = [];
             saveCartToDB($con, $user_id, []);
 
