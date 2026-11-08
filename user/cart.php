@@ -34,11 +34,13 @@ textarea.form-control{resize:vertical;min-height:80px}
 .order-types{display:grid;grid-template-columns:repeat(3, 1fr);gap:10px}
 .type-option{position:relative}
 .type-option input{position:absolute;opacity:0}
-.type-label{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:15px 10px;border:2px solid var(--border-color);border-radius:10px;cursor:pointer;transition:all 0.2s;text-align:center}
+.type-label{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:15px 10px;border:2px solid var(--border-color);border-radius:10px;cursor:pointer;transition:all 0.2s;text-align:center;height:100%}
 .type-label i{font-size:1.5rem;margin-bottom:5px;color:var(--text-muted)}
-.type-label span{font-size:0.85rem;font-weight:600}
+.type-label .type-title{font-size:0.9rem;font-weight:700;margin-bottom:3px}
+.type-label .type-desc{font-size:0.7rem;color:var(--text-muted);line-height:1.2}
 .type-option input:checked + .type-label{border-color:var(--brand-red);background:var(--brand-light);color:var(--brand-red)}
 .type-option input:checked + .type-label i{color:var(--brand-red)}
+.type-option input:checked + .type-label .type-desc{color:var(--brand-red)}
 
 /* Cart Summary Items */
 .cart-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-color);font-size:0.95rem}
@@ -51,6 +53,7 @@ textarea.form-control{resize:vertical;min-height:80px}
 .empty-msg{text-align:center;padding:2rem;color:var(--text-muted)}
 .toast{position:fixed;bottom:30px;right:30px;background:var(--brand-red);color:#fff;padding:14px 24px;border-radius:10px;font-weight:600;transform:translateY(100px);opacity:0;transition:all .3s;z-index:9999}
 .toast.show{transform:translateY(0);opacity:1}
+.time-label{font-size:0.8rem;color:var(--brand-red);font-weight:600;margin-top:5px;display:block}
 </style>
 </head>
 <body>
@@ -71,24 +74,36 @@ textarea.form-control{resize:vertical;min-height:80px}
                     <label>Order Type</label>
                     <div class="order-types">
                         <div class="type-option">
-                            <input type="radio" name="order_type" id="type_dinein" value="Dine-in">
-                            <label for="type_dinein" class="type-label"><i class="bi bi-cup-hot"></i><span>Dine-in</span></label>
+                            <input type="radio" name="order_type" id="type_dinein" value="Dine-in" onchange="updateTimeLabel()">
+                            <label for="type_dinein" class="type-label">
+                                <i class="bi bi-cup-hot"></i>
+                                <span class="type-title">Dine-in</span>
+                                <span class="type-desc">Skip the line</span>
+                            </label>
                         </div>
                         <div class="type-option">
-                            <input type="radio" name="order_type" id="type_pickup" value="Pick-up" checked>
-                            <label for="type_pickup" class="type-label"><i class="bi bi-bag"></i><span>Pick-up</span></label>
+                            <input type="radio" name="order_type" id="type_pickup" value="Pick-up" checked onchange="updateTimeLabel()">
+                            <label for="type_pickup" class="type-label">
+                                <i class="bi bi-bag"></i>
+                                <span class="type-title">Pick-up</span>
+                                <span class="type-desc">Ready to take home</span>
+                            </label>
                         </div>
                         <div class="type-option">
-                            <input type="radio" name="order_type" id="type_delivery" value="Delivery">
-                            <label for="type_delivery" class="type-label"><i class="bi bi-bicycle"></i><span>Delivery</span></label>
+                            <input type="radio" name="order_type" id="type_delivery" value="Delivery" onchange="updateTimeLabel()">
+                            <label for="type_delivery" class="type-label">
+                                <i class="bi bi-bicycle"></i>
+                                <span class="type-title">Delivery</span>
+                                <span class="type-desc">Delivered to your location</span>
+                            </label>
                         </div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="pickup_time">Preferred Time</label>
+                    <label for="pickup_time" id="timeLabel">What time will you pick it up?</label>
                     <input type="time" id="pickup_time" name="pickup_time" class="form-control" required>
-                    <small style="color:var(--text-muted);font-size:0.8rem">When should we have your order ready?</small>
+                    <span class="time-label" id="timeSublabel">When should we have your order ready?</span>
                 </div>
 
                 <div class="form-group">
@@ -124,6 +139,24 @@ textarea.form-control{resize:vertical;min-height:80px}
 // Load cart items on page load
 document.addEventListener('DOMContentLoaded', loadCartSummary);
 
+// ✅ Dynamic Time Label based on Order Type
+function updateTimeLabel() {
+    const selectedType = document.querySelector('input[name="order_type"]:checked').value;
+    const timeLabel = document.getElementById('timeLabel');
+    const timeSublabel = document.getElementById('timeSublabel');
+
+    if (selectedType === 'Dine-in') {
+        timeLabel.textContent = 'What time will you eat?';
+        timeSublabel.textContent = 'When would you like to be seated?';
+    } else if (selectedType === 'Pick-up') {
+        timeLabel.textContent = 'What time will you pick it up?';
+        timeSublabel.textContent = 'When should we have your order ready?';
+    } else if (selectedType === 'Delivery') {
+        timeLabel.textContent = 'What time should we deliver?';
+        timeSublabel.textContent = 'When would you like the food delivered?';
+    }
+}
+
 function loadCartSummary() {
     fetch('cart_actions.php?action=get')
     .then(r => r.json())
@@ -154,18 +187,20 @@ function loadCartSummary() {
         now.setMinutes(now.getMinutes() + 30);
         let timeStr = now.toTimeString().substring(0,5);
         document.getElementById('pickup_time').value = timeStr;
+        
+        // Initialize label
+        updateTimeLabel();
     });
 }
 
 function placeOrder() {
     const time = document.getElementById('pickup_time').value;
-    if (!time) { alert('Please select a pickup time!'); return; }
+    if (!time) { alert('Please select a time!'); return; }
 
     const btn = document.getElementById('btnPlaceOrder');
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
     btn.disabled = true;
 
-    // Gather form data
     const orderType = document.querySelector('input[name="order_type"]:checked').value;
     const orderNote = document.getElementById('order_note').value;
 
