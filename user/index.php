@@ -38,7 +38,7 @@ $rice_meals_list = [
     ['name'=>'Meat to gulay w/o rice','price'=>65,'has_drink'=>false,'has_rice'=>false,'type'=>'gulay'],
 ];
 
-// --- BREAKFAST SIDES ---
+// --- BREAKFAST SIDES (Strictly these 4) ---
 $breakfast_sides = [
     ['name'=>'Hotdog','price'=>15,'image'=>'hotdog.jpg','folder'=>'ulam'],
     ['name'=>'Egg','price'=>15,'image'=>'egg.jpg','folder'=>'ulam'],
@@ -87,7 +87,7 @@ if ($res) {
     }
 }
 
-// ✅ FILTER: Remove breakfast items from the Custom Rice Meal modal
+// ✅ FILTER: Remove breakfast items from the Custom Ulam modal so they don't mix
 $custom_ulam_items = array_filter($ulam_items, function($item) {
     return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice']);
 });
@@ -297,7 +297,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="category-section">
             <div class="category-title"><i class="bi bi-cup-hot"></i> Breakfast Silog</div>
             <div class="image-grid">
-                <!-- ✅ FIXED: Strictly calls openBreakfastModal() -->
+                <!-- ✅ STRICTLY CALLS BREAKFAST MODAL -->
                 <div class="img-card" onclick="openBreakfastModal()" style="cursor:pointer">
                     <div class="img-card-img-wrapper"><img src="../images/ulam/breakfast.jpg" alt="Breakfast Silog" onerror="this.src='https://via.placeholder.com/200?text=Breakfast'"></div>
                     <div class="img-card-info">
@@ -408,7 +408,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </div>
 
-<!-- ============ CUSTOM ORDER MODAL ============ -->
+<!-- ============ CUSTOM ORDER MODAL (WITH OPTIONAL DRINK) ============ -->
 <div class="modal-overlay" id="customOrderModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -438,6 +438,21 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             </div>
             <div class="rice-price-note">Rice is ₱15 and is automatically added to your total.</div>
         </div>
+        <!-- ✅ NEW: Optional Drink Section for Custom Ulam -->
+        <div class="modal-section" id="customDrinkSection" style="display:none">
+            <h3>3. Add a Drink? (Optional)</h3>
+            <div class="modal-images" id="customDrinkSelection">
+                <?php foreach($drinks_items as $item): ?>
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleCustomDrink(this)">
+                    <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
+                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <div style="margin-top:10px;text-align:center">
+                <button type="button" style="background:#6c757d;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer" onclick="skipCustomDrink()">Skip Drink & Add to Cart</button>
+            </div>
+        </div>
         <div class="modal-footer">
             <div class="modal-total" id="customOrderTotal">₱0.00</div>
             <button class="btn-add-cart" id="btnConfirmCustom" onclick="confirmCustomOrder()" disabled><i class="bi bi-cart-plus"></i> Add to Cart</button>
@@ -445,7 +460,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </div>
 
-<!-- ============ BREAKFAST MODAL ============ -->
+<!-- ============ BREAKFAST MODAL (STRICTLY SIDES ONLY) ============ -->
 <div class="modal-overlay" id="breakfastModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -454,7 +469,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         </div>
         <div class="modal-section">
             <h3>1. Choose Your Breakfast Sides</h3>
-            <div class="modal-images" id="breakfastSides">
+            <!-- ✅ STRICTLY LOOPS THROUGH $breakfast_sides ONLY -->
+            <div class="modal-images" id="breakfastSidesList">
                 <?php foreach($breakfast_sides as $item): ?>
                 <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastSide(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
@@ -551,7 +567,7 @@ const RICE_PRICE = 15;
 const riceMeals = <?=json_encode($rice_meals_list)?>;
 
 let selectedUlam=[], selectedRiceType='white', selectedDrink='', currentMeal=null;
-let selectedCustomUlam=[], customRiceType='white';
+let selectedCustomUlam=[], customRiceType='white', selectedCustomDrink='';
 let selectedSides=[], breakfastRice='white', selectedBreakfastDrink='';
 let qtyModalCard=null, qtyModalName='', qtyModalPrice=0, qtyModalQty=1;
 let customAmountCard=null, customAmountName='', customAmountPrice=0;
@@ -596,27 +612,18 @@ function addFromCard(card){
     });
 }
 
+// --- RICE MEAL MODAL LOGIC ---
 function openRiceMealModal(index){
     currentMeal = riceMeals[index];
     selectedUlam=[]; selectedRiceType='white'; selectedDrink='';
     document.getElementById('riceMealTitle').textContent = currentMeal.name;
     document.getElementById('riceMealTotal').textContent = '₱'+currentMeal.price.toFixed(2);
     document.getElementById('btnConfirmRiceMeal').disabled = true;
-    document.querySelectorAll('#ulamSelection .ulam-option').forEach(el=>{
-        el.classList.remove('selected');
-    });
+    document.querySelectorAll('#ulamSelection .ulam-option').forEach(el=>{ el.classList.remove('selected'); });
     const riceSection = document.getElementById('riceTypeSection');
-    if (currentMeal.has_rice) {
-        riceSection.style.display = 'block';
-    } else {
-        riceSection.style.display = 'none';
-    }
+    riceSection.style.display = currentMeal.has_rice ? 'block' : 'none';
     const drinkSection = document.getElementById('drinkSelectionSection');
-    if (currentMeal.has_drink) {
-        drinkSection.style.display = 'block';
-    } else {
-        drinkSection.style.display = 'none';
-    }
+    drinkSection.style.display = currentMeal.has_drink ? 'block' : 'none';
     document.querySelectorAll('#drinkSelection .modal-img-option').forEach(el=>el.classList.remove('selected'));
     document.querySelectorAll('#riceMealModal .rice-type-option').forEach(el=>el.classList.remove('selected'));
     document.querySelector('#riceMealModal .rice-type-option[data-type="white"]').classList.add('selected');
@@ -658,13 +665,16 @@ function confirmRiceMeal(){
     showToast('✅ Added to cart!');
 }
 
+// --- CUSTOM ULAM MODAL LOGIC (WITH OPTIONAL DRINK) ---
 function openCustomOrderModal(){
-    selectedCustomUlam=[]; customRiceType='white';
+    selectedCustomUlam=[]; customRiceType='white'; selectedCustomDrink='';
     document.getElementById('customOrderTotal').textContent='₱'+RICE_PRICE.toFixed(2);
     document.getElementById('btnConfirmCustom').disabled=true;
     document.querySelectorAll('#customUlamSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     document.querySelectorAll('#customOrderModal .rice-type-option').forEach(e=>e.classList.remove('selected'));
     document.querySelector('#customOrderModal .rice-type-option[data-type="white"]').classList.add('selected');
+    document.getElementById('customDrinkSection').style.display='none';
+    document.querySelectorAll('#customDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     document.getElementById('customOrderModal').classList.add('active');
 }
 
@@ -673,17 +683,42 @@ function toggleCustomUlam(el){
     if(el.classList.contains('selected')){ 
         el.classList.remove('selected'); 
         selectedCustomUlam=selectedCustomUlam.filter(u=>u.name!==name); 
-    }
-    else{
+    } else {
         if(selectedCustomUlam.length<3){ 
             el.classList.add('selected'); 
             selectedCustomUlam.push({name, price}); 
-        }
-        else showToast('Max 3 ulam!');
+        } else showToast('Max 3 ulam!');
     }
-    let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+u.price,0);
-    document.getElementById('customOrderTotal').textContent='₱'+total.toFixed(2);
+    
+    // Show drink section only if ulam is selected
+    if(selectedCustomUlam.length > 0) {
+        document.getElementById('customDrinkSection').style.display='block';
+    } else {
+        document.getElementById('customDrinkSection').style.display='none';
+        selectedCustomDrink = ''; 
+    }
+    updateCustomTotal();
     document.getElementById('btnConfirmCustom').disabled = selectedCustomUlam.length===0;
+}
+
+function toggleCustomDrink(el){
+    document.querySelectorAll('#customDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedCustomDrink = { name: el.dataset.name, price: parseFloat(el.dataset.price) };
+    updateCustomTotal();
+}
+
+function skipCustomDrink(){
+    document.querySelectorAll('#customDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
+    selectedCustomDrink = '';
+    updateCustomTotal();
+    confirmCustomOrder();
+}
+
+function updateCustomTotal(){
+    let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+u.price,0);
+    if(selectedCustomDrink) total += selectedCustomDrink.price;
+    document.getElementById('customOrderTotal').textContent='₱'+total.toFixed(2);
 }
 
 function selectCustomRiceType(el){
@@ -697,22 +732,26 @@ function confirmCustomOrder(){
     if(selectedCustomUlam.length===0) return;
     let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+u.price,0);
     let desc = 'Custom Rice ('+selectedCustomUlam.map(u=>u.name).join(', ')+', '+(customRiceType==='fried'?'Fried Rice':'White Rice')+')';
+    if(selectedCustomDrink){
+        desc += ' + ' + selectedCustomDrink.name;
+        total += selectedCustomDrink.price;
+    }
     addToCart(desc, total);
     if(customRiceType==='fried') deductFriedRice();
     closeModal('customOrderModal');
     showToast('✅ Added to cart!');
 }
 
-// ✅ FIXED: Breakfast modal strictly uses breakfast sides
+// --- BREAKFAST MODAL LOGIC (STRICTLY SIDES ONLY) ---
 function openBreakfastModal(){
     selectedSides=[]; breakfastRice='white'; selectedBreakfastDrink='';
     document.getElementById('breakfastTotal').textContent='₱'+RICE_PRICE.toFixed(2);
     document.getElementById('btnConfirmBreakfast').disabled=true;
-    document.querySelectorAll('#breakfastSides .modal-img-option').forEach(e=>e.classList.remove('selected'));
+    document.querySelectorAll('#breakfastSidesList .modal-img-option').forEach(e=>e.classList.remove('selected'));
     document.querySelectorAll('#breakfastModal .rice-type-option').forEach(e=>e.classList.remove('selected'));
     document.querySelector('#breakfastModal .rice-type-option[data-type="white"]').classList.add('selected');
-    document.querySelectorAll('#breakfastDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     document.getElementById('breakfastDrinkSection').style.display='none';
+    document.querySelectorAll('#breakfastDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     document.getElementById('breakfastModal').classList.add('active');
 }
 
@@ -721,8 +760,7 @@ function toggleBreakfastSide(el){
     if(el.classList.contains('selected')){ 
         el.classList.remove('selected'); 
         selectedSides=selectedSides.filter(s=>s.name!==name); 
-    }
-    else{ 
+    } else { 
         el.classList.add('selected'); 
         selectedSides.push({name,price}); 
         document.getElementById('breakfastDrinkSection').style.display='block';
@@ -734,10 +772,7 @@ function toggleBreakfastSide(el){
 function toggleBreakfastDrink(el){
     document.querySelectorAll('#breakfastDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     el.classList.add('selected');
-    selectedBreakfastDrink = {
-        name: el.dataset.name,
-        price: parseFloat(el.dataset.price)
-    };
+    selectedBreakfastDrink = { name: el.dataset.name, price: parseFloat(el.dataset.price) };
     updateBreakfastTotal();
 }
 
@@ -750,9 +785,7 @@ function skipBreakfastDrink(){
 
 function updateBreakfastTotal(){
     let total = RICE_PRICE + selectedSides.reduce((s,x)=>s+x.price,0);
-    if(selectedBreakfastDrink){
-        total += selectedBreakfastDrink.price;
-    }
+    if(selectedBreakfastDrink) total += selectedBreakfastDrink.price;
     document.getElementById('breakfastTotal').textContent='₱'+total.toFixed(2);
 }
 
@@ -777,6 +810,7 @@ function confirmBreakfast(){
     showToast('✅ Breakfast added to cart!');
 }
 
+// --- QTY & AMOUNT MODALS ---
 function openQtyModal(card){
     qtyModalCard = card;
     qtyModalName = card.dataset.name; qtyModalPrice = parseFloat(card.dataset.price); qtyModalQty = 1;
