@@ -128,7 +128,6 @@ switch ($action) {
         }
         $_SESSION['cart'][$cartKey]['quantity'] += $qty;
 
-        // Save to database
         saveCartToDB($con, $user_id, $_SESSION['cart']);
 
         echo json_encode(['success' => true, 'message' => 'Added!', 'total_items' => cartTotalItems($_SESSION['cart'])]);
