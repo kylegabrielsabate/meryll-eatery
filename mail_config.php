@@ -14,8 +14,8 @@ define('SMTP_PASS', getenv('SMTP_PASS') ?: 'placeholder_app_password');
 define('SMTP_FROM_NAME', 'Meryll Eatery');
 
 function sendMail($toEmail, $subject, $htmlBody) {
-    // Load Composer autoloader
-    require_once __DIR__ . '/../vendor/autoload.php';
+    // ✅ FIX: Removed the '../' so it looks in the correct root vendor folder
+    require_once __DIR__ . '/vendor/autoload.php';
 
     $mail = new PHPMailer(true);
     try {
