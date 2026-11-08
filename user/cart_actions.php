@@ -180,6 +180,54 @@ switch ($action) {
         ]);
         break;
 
+    // ✅ --- CHECKOUT (NEW: Saves order to database) ---
+    case 'checkout':
+        if (empty($_SESSION['cart'])) {
+            echo json_encode(['success' => false, 'message' => 'Your cart is empty.']);
+            exit();
+        }
+
+        $user_id = $_SESSION['user_id'];
+        $total_amount = cartTotalPrice($_SESSION['cart']);
+        $status = 'Pending';
+
+        // Start database transaction for safety
+        $con->begin_transaction();
+        try {
+            // 1. Insert into orders table
+            $stmt = $con->prepare("INSERT INTO orders (user_id, total_amount, status, created_at) VALUES (?, ?, ?, NOW())");
+            $stmt->bind_param("ids", $user_id, $total_amount, $status);
+            $stmt->execute();
+            $order_id = $con->insert_id;
+
+            // 2. Insert into order_items table
+            $stmt_item = $con->prepare("INSERT INTO order_items (order_id, item_name, price, quantity, subtotal) VALUES (?, ?, ?, ?, ?)");
+            
+            foreach ($_SESSION['cart'] as $item) {
+                $subtotal = $item['price'] * $item['quantity'];
+                $stmt_item->bind_param("isddd", $order_id, $item['name'], $item['price'], $item['quantity'], $subtotal);
+                $stmt_item->execute();
+            }
+
+            // 3. Commit transaction
+            $con->commit();
+
+            // 4. Clear cart on success
+            $_SESSION['cart'] = [];
+
+            echo json_encode([
+                'success'  => true,
+                'message'  => 'Order placed successfully at Meryll Eatery!',
+                'order_id' => $order_id
+            ]);
+
+        } catch (Exception $e) {
+            // Rollback if anything fails
+            $con->rollback();
+            echo json_encode(['success' => false, 'message' => 'Checkout failed. Please try again.']);
+        }
+        break;
+
     // --- INVALID ACTION ---
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid action.']);
