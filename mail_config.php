@@ -3,6 +3,9 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+// Load Composer autoloader immediately
+require_once __DIR__ . '/vendor/autoload.php';
+
 // Base URL from Render Environment Variables
 define('BASE_URL', trim(getenv('BASE_URL')) ?: 'https://meryll-eatery.onrender.com/user');
 
@@ -14,9 +17,6 @@ define('SMTP_PASS', getenv('SMTP_PASS') ?: 'placeholder_app_password');
 define('SMTP_FROM_NAME', 'Meryll Eatery');
 
 function sendMail($toEmail, $subject, $htmlBody) {
-    // ✅ FIX: Removed the '../' so it looks in the correct root vendor folder
-    require_once __DIR__ . '/vendor/autoload.php';
-
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
@@ -26,6 +26,9 @@ function sendMail($toEmail, $subject, $htmlBody) {
         $mail->Password   = SMTP_PASS;
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = SMTP_PORT;
+        
+        // ✅ FIX: Set timeout to 10 seconds so it doesn't hang forever
+        $mail->Timeout = 10; 
 
         $mail->setFrom(SMTP_USER, SMTP_FROM_NAME);
         $mail->addAddress($toEmail);
