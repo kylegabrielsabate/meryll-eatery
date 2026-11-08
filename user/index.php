@@ -12,13 +12,23 @@ $cart_count = 0;
 foreach ($_SESSION['cart'] as $item) $cart_count += $item['quantity'];
 
 function slugify($s){ return trim(preg_replace('/[^a-z0-9]+/','_', strtolower($s)), '_'); }
-function imgTag($folder,$image){ 
+
+// ✅ SMART IMAGE FINDER: Checks subfolder first, then root folder, then placeholder
+function imgTag($folder, $image){ 
+    if (empty($image) || $image === 'placeholder.jpg') {
+        return "https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image";
+    }
     $path = __DIR__ . "/../images/$folder/$image";
     if (file_exists($path)) return "../images/$folder/$image";
+    
+    // Fallback to root images folder just in case
+    $rootPath = __DIR__ . "/../images/$image";
+    if (file_exists($rootPath)) return "../images/$image";
+    
     return "https://via.placeholder.com/200x160/8B0000/ffffff?text=" . urlencode(str_replace(' ', '+', $image));
 }
 
-// --- RICE MEALS (hardcoded) ---
+// --- RICE MEALS (hardcoded combos) ---
 $rice_meals_list = [
     ['name'=>'Meat to meat with rice & drinks','price'=>95,'has_drink'=>true,'has_rice'=>true,'type'=>'meat'],
     ['name'=>'Meat to meat with rice','price'=>85,'has_drink'=>false,'has_rice'=>true,'type'=>'meat'],
@@ -28,18 +38,7 @@ $rice_meals_list = [
     ['name'=>'Meat to gulay w/o rice','price'=>65,'has_drink'=>false,'has_rice'=>false,'type'=>'gulay'],
 ];
 
-// --- ULAM (hardcoded) ---
-$ulam_items = [
-    ['name'=>'Adobo Atay','image'=>'adobo_atay.jpg','folder'=>'ulam','type'=>'meat'],
-    ['name'=>'Chicken Curry','image'=>'chicken_curry.jpg','folder'=>'ulam','type'=>'meat'],
-    ['name'=>'Chicken Teriyaki','image'=>'chicken_teriyaki.jpg','folder'=>'ulam','type'=>'meat'],
-    ['name'=>'Pork BBQ','image'=>'pork_bbq.jpg','folder'=>'ulam','type'=>'meat'],
-    ['name'=>'Fried Chicken','image'=>'fried_chicken.jpg','folder'=>'ulam','type'=>'meat'],
-    ['name'=>'Tortang Talong','image'=>'tortang_talong.jpg','folder'=>'ulam','type'=>'gulay'],
-    ['name'=>'Chicken Buffalo','image'=>'chicken_buffalo.jpg','folder'=>'ulam','type'=>'meat'],
-];
-
-// --- BREAKFAST SIDES ---
+// --- BREAKFAST SIDES (hardcoded) ---
 $breakfast_sides = [
     ['name'=>'Hotdog','price'=>15,'image'=>'hotdog.jpg','folder'=>'ulam'],
     ['name'=>'Egg','price'=>15,'image'=>'egg.jpg','folder'=>'ulam'],
@@ -48,104 +47,55 @@ $breakfast_sides = [
 ];
 $RICE_PRICE = 15;
 
-// --- MERYENDA (hardcoded) ---
-$meryenda_items = [
-    ['name'=>'Pansit','price'=>20,'image'=>'pancit.jpg','folder'=>'meryenda'],
-    ['name'=>'Palabok','price'=>20,'image'=>'palabok.jpg','folder'=>'meryenda'],
-    ['name'=>'Spaghetti','price'=>20,'image'=>'spaghetti.jpg','folder'=>'meryenda'],
-    ['name'=>'Carbonara','price'=>20,'image'=>'carbonara.jpg','folder'=>'meryenda'],
-    ['name'=>'Mami','price'=>35,'image'=>'mami.jpg','folder'=>'meryenda'],
-    ['name'=>'Lumpiang Gulay','price'=>5,'image'=>'lumpiang_gulay.jpg','folder'=>'meryenda'],
-    ['name'=>'Malagkit','price'=>5,'image'=>'malagkit.jpg','folder'=>'meryenda'],
-    ['name'=>'Shanghai','price'=>5,'image'=>'shanghai.jpg','folder'=>'meryenda'],
-    ['name'=>'Siomai','price'=>20,'image'=>'siomai.jpg','folder'=>'meryenda'],
-    ['name'=>'Siopao','price'=>25,'image'=>'siopao.jpg','folder'=>'meryenda'],
-];
-
-// --- COFFEE (hardcoded) ---
-$coffee_items = [
-    ['name'=>'Kopiko Blanca','price'=>15,'image'=>'kopiko_blanca.jpg','folder'=>'drinks'],
-    ['name'=>'Kopiko Brown','price'=>15,'image'=>'kopiko_brown.jpg','folder'=>'drinks'],
-    ['name'=>'Kopiko Black','price'=>15,'image'=>'kopiko_black.jpg','folder'=>'drinks'],
-    ['name'=>'Top Cafe','price'=>15,'image'=>'top_cafe.jpg','folder'=>'drinks'],
-    ['name'=>'Birchtree','price'=>15,'image'=>'birchtree.jpg','folder'=>'drinks'],
-];
-
-// --- DRINKS (hardcoded) ---
-$drinks_items = [
-    ['name'=>'7 Up','price'=>20,'image'=>'7up.jpg','folder'=>'drinks'],
-    ['name'=>'Mt. Dew 12oz','price'=>20,'image'=>'mtdew.jpg','folder'=>'drinks'],
-    ['name'=>'Mt. Dew 8oz','price'=>15,'image'=>'mtdew.jpg','folder'=>'drinks'],
-    ['name'=>'Coca Cola 8oz','price'=>15,'image'=>'coke.jpg','folder'=>'drinks'],
-    ['name'=>'Minute Maid','price'=>15,'image'=>'minute_maid.jpg','folder'=>'drinks'],
-    ['name'=>'Magnolia Healthy','price'=>17,'image'=>'healthtea.jpg','folder'=>'drinks'],
-    ['name'=>'Yakult','price'=>15,'image'=>'yakult.jpg','folder'=>'drinks'],
-    ['name'=>'Chuckie','price'=>30,'image'=>'chuckie.jpg','folder'=>'drinks'],
-    ['name'=>'Dutchmill','price'=>30,'image'=>'dutchmill.jpg','folder'=>'drinks'],
-    ['name'=>'Sterilized Bearbrand','price'=>30,'image'=>'sterilized_bearbrand.jpg','folder'=>'drinks'],
-];
-
-// --- SNACKS (hardcoded) ---
-$snacks_items = [
-    ['name'=>'Nova','price'=>20,'image'=>'nova.jpg','folder'=>'snacks'],
-    ['name'=>'Piattos','price'=>20,'image'=>'piattos.jpg','folder'=>'snacks'],
-    ['name'=>'Bengbeng','price'=>15,'image'=>'bengbeng.jpg','folder'=>'snacks'],
-    ['name'=>'Chocomucho','price'=>15,'image'=>'chocomucho.jpg','folder'=>'snacks'],
-    ['name'=>'Cloud 9','price'=>15,'image'=>'cloud9.jpg','folder'=>'snacks'],
-    ['name'=>'Combi','price'=>10,'image'=>'combi.jpg','folder'=>'snacks'],
-    ['name'=>'Crossini','price'=>10,'image'=>'crossini.jpg','folder'=>'snacks'],
-    ['name'=>'Dewberry','price'=>10,'image'=>'dewberry.jpg','folder'=>'snacks'],
-    ['name'=>'Extreme','price'=>10,'image'=>'extreme.jpg','folder'=>'snacks'],
-    ['name'=>'Fish Crackers','price'=>10,'image'=>'fishcrackers.jpg','folder'=>'snacks'],
-    ['name'=>'Frootees','price'=>10,'image'=>'frootees.jpg','folder'=>'snacks'],
-    ['name'=>'Hansel','price'=>10,'image'=>'hansel.jpg','folder'=>'snacks'],
-    ['name'=>'Loaded','price'=>12,'image'=>'loaded.jpg','folder'=>'snacks'],
-    ['name'=>'Mang Juan','price'=>12,'image'=>'mangjuan.jpg','folder'=>'snacks'],
-    ['name'=>'Mr. Chips','price'=>12,'image'=>'mrchips.jpg','folder'=>'snacks'],
-    ['name'=>'Oishi','price'=>15,'image'=>'oishi.jpg','folder'=>'snacks'],
-    ['name'=>'Pillows','price'=>12,'image'=>'pillows.jpg','folder'=>'snacks'],
-    ['name'=>'Presto','price'=>15,'image'=>'presto.jpg','folder'=>'snacks'],
-    ['name'=>'Rebisco','price'=>10,'image'=>'rebisco.jpg','folder'=>'snacks'],
-    ['name'=>'Richeese','price'=>15,'image'=>'richeese.jpg','folder'=>'snacks'],
-    ['name'=>'Skyflakes','price'=>10,'image'=>'skyflakes.jpg','folder'=>'snacks'],
-    ['name'=>'Snacku','price'=>20,'image'=>'snacku.jpg','folder'=>'snacks'],
-    ['name'=>'Vcut','price'=>20,'image'=>'vcut.jpg','folder'=>'snacks'],
-    ['name'=>'Wafrets','price'=>10,'image'=>'wafrets.jpg','folder'=>'snacks'],
-];
-
-// --- CANDIES (hardcoded) ---
-$candies_items = [
-    ['name'=>'Fres','price'=>5,'image'=>'fres.jpg','folder'=>'candies'],
-    ['name'=>'Frutos','price'=>5,'image'=>'frutos.jpg','folder'=>'candies'],
-    ['name'=>'Kopiko','price'=>15,'image'=>'kopiko.jpg','folder'=>'candies'],
-    ['name'=>'Maxx','price'=>5,'image'=>'maxx.jpg','folder'=>'candies'],
-    ['name'=>'Mentos','price'=>5,'image'=>'mentos.jpg','folder'=>'candies'],
-    ['name'=>'Monami','price'=>5,'image'=>'monami.jpg','folder'=>'candies'],
-    ['name'=>'Pochi','price'=>5,'image'=>'pochi.jpg','folder'=>'candies'],
-    ['name'=>'Snowbear','price'=>5,'image'=>'snowbear.jpg','folder'=>'candies'],
-    ['name'=>'Vfresh','price'=>5,'image'=>'vfresh.jpg','folder'=>'candies'],
-];
-
-// --- NOODLES (hardcoded) ---
-$noodles_items = [
-    ['name'=>'Cup Noodles','price'=>35,'image'=>'cupnoodles.jpg','folder'=>'noodles'],
-    ['name'=>'Pancit Canton','price'=>30,'image'=>'pancit_canton.jpg','folder'=>'noodles'],
-];
-
-// --- ESSENTIALS (hardcoded) ---
-$essentials_items = [
-    ['name'=>'Napkin','price'=>10,'image'=>'napkin.jpg','folder'=>'essentials'],
-    ['name'=>'Tissue','price'=>15,'image'=>'tissue.jpg','folder'=>'essentials'],
-    ['name'=>'Wipes','price'=>15,'image'=>'wipes.jpg','folder'=>'essentials'],
-];
-
+// --- ACCESORIES (hardcoded) ---
 $accesories_items = [
     ['name'=>'Ribbon','price'=>5,'image'=>'ribbon.jpg','folder'=>'accesories'],
 ];
 
+// ==========================================
+// ✅ DYNAMIC FETCH FROM DATABASE
+// This ensures the user side matches the admin side exactly!
+// Ordered by productID ASC so older items (Siomai, Corndog) are at the top, 
+// and newer items (Snacks) are at the bottom.
+// ==========================================
+$ulam_items = [];
+$meryenda_items = [];
+$candies_items = [];
+$coffee_items = [];
+$drinks_items = [];
+$noodles_items = [];
+$essentials_items = [];
+
+$sql = "SELECT productname, price, productImage, categoryID FROM products WHERE is_available = 1 ORDER BY productID ASC";
+$res = $con->query($sql);
+
+if ($res) {
+    while ($row = $res->fetch_assoc()) {
+        $item = [
+            'name' => $row['productname'],
+            'price' => (float)$row['price'],
+            'image' => $row['productImage'] ?: 'placeholder.jpg',
+            'folder' => ''
+        ];
+        
+        switch ($row['categoryID']) {
+            case 1: $item['folder'] = 'ulam'; $ulam_items[] = $item; break;
+            case 2: $item['folder'] = 'meryenda'; $meryenda_items[] = $item; break; // Snacks are now here!
+            case 3: $item['folder'] = 'candies'; $candies_items[] = $item; break;
+            case 4: $item['folder'] = 'drinks'; $coffee_items[] = $item; break;
+            case 5: $item['folder'] = 'drinks'; $drinks_items[] = $item; break;
+            case 6: $item['folder'] = 'noodles'; $noodles_items[] = $item; break;
+            case 7: $item['folder'] = 'essentials'; $essentials_items[] = $item; break;
+        }
+    }
+}
+
 $active_cat = isset($_GET['cat']) ? $_GET['cat'] : 'all';
 
 function renderGrid($items, $clickAction = 'qty') {
+    if (empty($items)) {
+        return '<p style="color:var(--text-muted);padding:1rem;">No items available in this category yet.</p>';
+    }
     $html = '<div class="image-grid">';
     foreach ($items as $item) {
         $slug = slugify($item['name']);
@@ -274,10 +224,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <a href="my_orders.php" class="nav-link"><i class="bi bi-receipt"></i> My Orders</a>
         <a href="?cat=rice" class="nav-link <?=$active_cat=='rice'?'active':''?>"><i class="bi bi-bowl-hot"></i> Rice Meals</a>
         <a href="?cat=breakfast" class="nav-link <?=$active_cat=='breakfast'?'active':''?>"><i class="bi bi-cup-hot"></i> Breakfast</a>
-        <a href="?cat=meryenda" class="nav-link <?=$active_cat=='meryenda'?'active':''?>"><i class="bi bi-cookie"></i> Meryenda</a>
+        <a href="?cat=meryenda" class="nav-link <?=$active_cat=='meryenda'?'active':''?>"><i class="bi bi-cookie"></i> Meryenda & Snacks</a>
         <a href="?cat=coffee" class="nav-link <?=$active_cat=='coffee'?'active':''?>"><i class="bi bi-cup-fill"></i> Coffee</a>
         <a href="?cat=drinks" class="nav-link <?=$active_cat=='drinks'?'active':''?>"><i class="bi bi-cup-straw"></i> Drinks</a>
-        <a href="?cat=snacks" class="nav-link <?=$active_cat=='snacks'?'active':''?>"><i class="bi bi-candy"></i> Snacks</a>
         <a href="?cat=candies" class="nav-link <?=$active_cat=='candies'?'active':''?>"><i class="bi bi-heart"></i> Candies</a>
         <a href="?cat=noodles" class="nav-link <?=$active_cat=='noodles'?'active':''?>"><i class="bi bi-egg"></i> Noodles</a>
         <a href="?cat=essentials" class="nav-link <?=$active_cat=='essentials'?'active':''?>"><i class="bi bi-box-seam"></i> Essentials</a>
@@ -349,7 +298,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 
         <?php if($active_cat=='all'||$active_cat=='meryenda'): ?>
         <div class="category-section">
-            <div class="category-title"><i class="bi bi-cookie"></i> Meryenda</div>
+            <div class="category-title"><i class="bi bi-cookie"></i> Meryenda & Snacks</div>
             <?=renderGrid($meryenda_items,'amount')?>
         </div>
         <?php endif; ?>
@@ -365,13 +314,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="category-section">
             <div class="category-title"><i class="bi bi-cup-straw"></i> Drinks</div>
             <?=renderGrid($drinks_items)?>
-        </div>
-        <?php endif; ?>
-
-        <?php if($active_cat=='all'||$active_cat=='snacks'): ?>
-        <div class="category-section">
-            <div class="category-title"><i class="bi bi-candy"></i> Snacks</div>
-            <?=renderGrid($snacks_items)?>
         </div>
         <?php endif; ?>
 
@@ -416,7 +358,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             <h3 id="ulamStepTitle">1. Choose 1-3 Ulam</h3>
             <div class="modal-images" id="ulamSelection">
                 <?php foreach($ulam_items as $item): ?>
-                <div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" data-type="<?=$item['type']?>" onclick="toggleUlam(this)">
+                <div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" data-type="<?=$item['type'] ?? 'meat'?>" onclick="toggleUlam(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div>
                 </div>
@@ -463,9 +405,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             <h3>1. Select 1-3 Ulam (Meat ₱40 / Gulay ₱35 each)</h3>
             <div class="modal-images" id="customUlamSelection">
                 <?php foreach($ulam_items as $item): ?>
-                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-type="<?=$item['type']?>" onclick="toggleCustomUlam(this)">
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-type="<?=$item['type'] ?? 'meat'?>" onclick="toggleCustomUlam(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
-                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['type']=='meat'?40:35?></div>
+                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=($item['type'] ?? 'meat')=='meat'?40:35?></div>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -698,7 +640,7 @@ function openCustomOrderModal(){
     document.getElementById('customOrderModal').classList.add('active');
 }
 function toggleCustomUlam(el){
-    const name = el.dataset.name, type = el.dataset.type;
+    const name = el.dataset.name, type = el.dataset.type || 'meat';
     if(el.classList.contains('selected')){ el.classList.remove('selected'); selectedCustomUlam=selectedCustomUlam.filter(u=>u.name!==name); }
     else{
         if(selectedCustomUlam.length<3){ el.classList.add('selected'); selectedCustomUlam.push({name,type}); }
