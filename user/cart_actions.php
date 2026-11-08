@@ -9,10 +9,72 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-if (!isset($_SESSION['cart'])) { $_SESSION['cart'] = []; }
+$user_id = $_SESSION['user_id'];
+
+// Initialize cart from database if session is empty
+if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
+    $_SESSION['cart'] = [];
+    loadCartFromDB($con, $user_id);
+}
+
 if (!isset($_SESSION['fried_rice_stock'])) { $_SESSION['fried_rice_stock'] = 20; }
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
+
+// Load cart from database into session
+function loadCartFromDB($con, $user_id) {
+    $stmt = $con->prepare("
+        SELECT c.cartID, c.productID, c.quantity, p.productname, p.price, p.is_available 
+        FROM cart c 
+        JOIN products p ON c.productID = p.productID 
+        WHERE c.user_id = ?
+    ");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    while ($row = $result->fetch_assoc()) {
+        $cartKey = md5($row['productname'] . $row['price']);
+        $_SESSION['cart'][$cartKey] = [
+            'cartID' => $row['cartID'],
+            'productID' => $row['productID'],
+            'name' => $row['productname'],
+            'price' => (float)$row['price'],
+            'quantity' => (int)$row['quantity'],
+            'is_available' => (int)$row['is_available']
+        ];
+    }
+}
+
+// Save entire cart to database
+function saveCartToDB($con, $user_id, $cart) {
+    // Clear existing cart for this user
+    $stmt = $con->prepare("DELETE FROM cart WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    
+    if (empty($cart)) return;
+    
+    $stmt = $con->prepare("INSERT INTO cart (user_id, productID, quantity) VALUES (?, ?, ?)");
+    
+    foreach ($cart as $item) {
+        $stmt->bind_param("iii", $user_id, $item['productID'], $item['quantity']);
+        $stmt->execute();
+    }
+}
+
+// Check if items are still available
+function checkItemAvailability($con, $cart) {
+    $unavailable = [];
+    
+    foreach ($cart as $key => $item) {
+        if (isset($item['is_available']) && $item['is_available'] == 0) {
+            $unavailable[$key] = $item['name'];
+        }
+    }
+    
+    return $unavailable;
+}
 
 function cartTotalItems($cart) {
     $total = 0;
@@ -30,7 +92,6 @@ function isValidKey($key) {
     return preg_match('/^[a-f0-9]{32}$/', $key);
 }
 
-// Generate unique order number like "ME-20261108-001"
 function generateOrderNumber($con) {
     $date = date('Ymd');
     $prefix = 'ME-' . $date . '-';
@@ -45,18 +106,30 @@ switch ($action) {
         $name  = trim($_POST['name'] ?? '');
         $price = floatval($_POST['price'] ?? 0);
         $qty   = intval($_POST['quantity'] ?? 1);
+        $productID = intval($_POST['productID'] ?? 0);
+        
         if ($qty < 1) $qty = 1;
 
-        if (empty($name) || $price <= 0) {
+        if (empty($name) || $price <= 0 || $productID <= 0) {
             echo json_encode(['success' => false, 'message' => 'Invalid item.']);
             exit();
         }
 
         $cartKey = md5($name . $price);
+        
         if (!isset($_SESSION['cart'][$cartKey])) {
-            $_SESSION['cart'][$cartKey] = ['name' => $name, 'price' => $price, 'quantity' => 0];
+            $_SESSION['cart'][$cartKey] = [
+                'productID' => $productID,
+                'name' => $name,
+                'price' => $price,
+                'quantity' => 0,
+                'is_available' => 1
+            ];
         }
         $_SESSION['cart'][$cartKey]['quantity'] += $qty;
+
+        // Save to database
+        saveCartToDB($con, $user_id, $_SESSION['cart']);
 
         echo json_encode(['success' => true, 'message' => 'Added!', 'total_items' => cartTotalItems($_SESSION['cart'])]);
         break;
@@ -68,45 +141,91 @@ switch ($action) {
             $_SESSION['cart'][$cartKey]['quantity'] += $change;
             if ($_SESSION['cart'][$cartKey]['quantity'] <= 0) unset($_SESSION['cart'][$cartKey]);
         }
+        
+        saveCartToDB($con, $user_id, $_SESSION['cart']);
+        
         echo json_encode(['success' => true, 'total_items' => cartTotalItems($_SESSION['cart'])]);
         break;
 
     case 'remove':
         $cartKey = $_POST['cart_key'] ?? '';
-        if (isValidKey($cartKey) && isset($_SESSION['cart'][$cartKey])) unset($_SESSION['cart'][$cartKey]);
+        if (isValidKey($cartKey) && isset($_SESSION['cart'][$cartKey])) {
+            unset($_SESSION['cart'][$cartKey]);
+        }
+        
+        saveCartToDB($con, $user_id, $_SESSION['cart']);
+        
         echo json_encode(['success' => true, 'total_items' => cartTotalItems($_SESSION['cart'])]);
         break;
 
     case 'get':
+        // Reload from DB to get latest availability status
+        $_SESSION['cart'] = [];
+        loadCartFromDB($con, $user_id);
+        
+        // Check for unavailable items
+        $unavailable = checkItemAvailability($con, $_SESSION['cart']);
+        
         $items = [];
         foreach ($_SESSION['cart'] as $key => $item) {
-            $items[] = ['cart_key' => $key, 'name' => $item['name'], 'price' => $item['price'], 'quantity' => $item['quantity'], 'subtotal' => $item['price'] * $item['quantity']];
+            $items[] = [
+                'cart_key' => $key,
+                'productID' => $item['productID'],
+                'name' => $item['name'],
+                'price' => $item['price'],
+                'quantity' => $item['quantity'],
+                'subtotal' => $item['price'] * $item['quantity'],
+                'is_available' => !isset($unavailable[$key])
+            ];
         }
-        echo json_encode(['success' => true, 'items' => $items, 'total_items' => cartTotalItems($_SESSION['cart']), 'total_price' => cartTotalPrice($_SESSION['cart'])]);
+        
+        echo json_encode([
+            'success' => true,
+            'items' => $items,
+            'total_items' => cartTotalItems($_SESSION['cart']),
+            'total_price' => cartTotalPrice($_SESSION['cart']),
+            'unavailable' => $unavailable
+        ]);
         break;
 
     case 'clear':
         $_SESSION['cart'] = [];
+        saveCartToDB($con, $user_id, []);
         echo json_encode(['success' => true]);
         break;
 
     case 'deduct_fried_rice':
-        if ($_SESSION['fried_rice_stock'] > 0) { $_SESSION['fried_rice_stock']--; echo json_encode(['success' => true]); }
-        else { echo json_encode(['success' => false]); }
+        if ($_SESSION['fried_rice_stock'] > 0) {
+            $_SESSION['fried_rice_stock']--;
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false]);
+        }
         break;
 
-    // ✅ CHECKOUT - MANUAL ID GENERATION (Fixes TiDB Auto Increment Issue)
     case 'checkout':
+        // Reload from DB to check latest availability
+        $_SESSION['cart'] = [];
+        loadCartFromDB($con, $user_id);
+        
         if (empty($_SESSION['cart'])) {
             echo json_encode(['success' => false, 'message' => 'Your cart is empty.']);
             exit();
         }
 
-        $user_id = $_SESSION['user_id'];
+        // Check availability before checkout
+        $unavailable = checkItemAvailability($con, $_SESSION['cart']);
+        if (!empty($unavailable)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Some items are no longer available: ' . implode(', ', $unavailable)
+            ]);
+            exit();
+        }
+
         $total_amount = cartTotalPrice($_SESSION['cart']);
         $status = 'Pending';
         
-        // Map "Delivery" to "Delivered" to match your database enum exactly
         $order_type_raw = $_POST['order_type'] ?? 'Pick-up';
         $order_type = ($order_type_raw === 'Delivery') ? 'Delivered' : $order_type_raw;
         
@@ -117,7 +236,6 @@ switch ($action) {
         try {
             $con->begin_transaction();
             
-            // 1. MANUALLY FIND THE NEXT ORDER ID
             $maxOrderId = 0;
             $res = $con->query("SELECT MAX(order_id) as max_id FROM orders");
             if ($row = $res->fetch_assoc()) {
@@ -125,15 +243,12 @@ switch ($action) {
             }
             $newOrderId = $maxOrderId + 1;
 
-            // 2. INSERT ORDER WITH SPECIFIC ID
             $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, pickup_time, order_note, total_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
             if (!$stmt) throw new Exception("Prepare failed: " . $con->error);
             
-            // Note: 'd' is for double/decimal (total_amount), 's' for string, 'i' for int
             $stmt->bind_param("iissssds", $newOrderId, $user_id, $order_number, $order_type, $pickup_time, $order_note, $total_amount, $status);
             $stmt->execute();
             
-            // 3. MANUALLY FIND THE NEXT ORDER ITEM ID
             $maxItemId = 0;
             $res2 = $con->query("SELECT MAX(order_item_id) as max_id FROM order_items");
             if ($row2 = $res2->fetch_assoc()) {
@@ -141,18 +256,20 @@ switch ($action) {
             }
             $newItemId = $maxItemId + 1;
 
-            // 4. INSERT ITEMS WITH SPECIFIC IDs
             $stmt_item = $con->prepare("INSERT INTO order_items (order_item_id, order_id, item_name, quantity, price) VALUES (?, ?, ?, ?, ?)");
             if (!$stmt_item) throw new Exception("Prepare items failed: " . $con->error);
             
             foreach ($_SESSION['cart'] as $item) {
                 $stmt_item->bind_param("iisdd", $newItemId, $newOrderId, $item['name'], $item['quantity'], $item['price']);
                 $stmt_item->execute();
-                $newItemId++; // Increment for the next item in the cart
+                $newItemId++;
             }
             
             $con->commit();
+            
+            // Clear cart from session AND database
             $_SESSION['cart'] = [];
+            saveCartToDB($con, $user_id, []);
 
             echo json_encode([
                 'success' => true, 

@@ -13,7 +13,6 @@ foreach ($_SESSION['cart'] as $item) $cart_count += $item['quantity'];
 
 function slugify($s){ return trim(preg_replace('/[^a-z0-9]+/','_', strtolower($s)), '_'); }
 
-// ✅ SMART IMAGE FINDER
 function imgTag($folder, $image){ 
     if (empty($image) || $image === 'placeholder.jpg') {
         return "https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image";
@@ -28,7 +27,6 @@ function imgTag($folder, $image){
     return "https://via.placeholder.com/200x160/8B0000/ffffff?text=" . urlencode(str_replace(' ', '+', $image));
 }
 
-// --- RICE MEALS ---
 $rice_meals_list = [
     ['name'=>'Meat to meat with rice & drinks','price'=>95,'has_drink'=>true,'has_rice'=>true,'type'=>'meat'],
     ['name'=>'Meat to meat with rice','price'=>85,'has_drink'=>false,'has_rice'=>true,'type'=>'meat'],
@@ -38,7 +36,6 @@ $rice_meals_list = [
     ['name'=>'Meat to gulay w/o rice','price'=>65,'has_drink'=>false,'has_rice'=>false,'type'=>'gulay'],
 ];
 
-// --- BREAKFAST SIDES (Strictly these 4) ---
 $breakfast_sides = [
     ['name'=>'Hotdog','price'=>15,'image'=>'hotdog.jpg','folder'=>'ulam'],
     ['name'=>'Egg','price'=>15,'image'=>'egg.jpg','folder'=>'ulam'],
@@ -47,14 +44,10 @@ $breakfast_sides = [
 ];
 $RICE_PRICE = 15;
 
-// --- ACCESORIES ---
 $accesories_items = [
     ['name'=>'Ribbon','price'=>5,'image'=>'ribbon.jpg','folder'=>'accesories'],
 ];
 
-// ==========================================
-// ✅ DYNAMIC FETCH FROM DATABASE
-// ==========================================
 $ulam_items = [];
 $meryenda_items = [];
 $candies_items = [];
@@ -63,12 +56,13 @@ $drinks_items = [];
 $noodles_items = [];
 $essentials_items = [];
 
-$sql = "SELECT productname, price, productImage, categoryID FROM products WHERE is_available = 1 ORDER BY productID ASC";
+$sql = "SELECT productID, productname, price, productImage, categoryID FROM products WHERE is_available = 1 ORDER BY productID ASC";
 $res = $con->query($sql);
 
 if ($res) {
     while ($row = $res->fetch_assoc()) {
         $item = [
+            'productID' => $row['productID'],
             'name' => $row['productname'],
             'price' => (float)$row['price'],
             'image' => $row['productImage'] ?: 'placeholder.jpg',
@@ -87,7 +81,6 @@ if ($res) {
     }
 }
 
-// ✅ FILTER: Remove breakfast items from the Custom Ulam modal AND dashboard grid
 $custom_ulam_items = array_filter($ulam_items, function($item) {
     return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice']);
 });
@@ -105,7 +98,7 @@ function renderGrid($items, $clickAction = 'qty') {
         $ph = 'https://via.placeholder.com/200?text=' . urlencode($item['name']);
         $onclick = ($clickAction === 'amount') ? "openCustomAmountModal(this.closest('.img-card'))" : "openQtyModal(this.closest('.img-card'))";
         $html .= '
-        <div class="img-card" data-slug="'.$slug.'" data-name="'.htmlspecialchars($item['name']).'" data-price="'.$item['price'].'" data-img="'.$img.'">
+        <div class="img-card" data-slug="'.$slug.'" data-productid="'.$item['productID'].'" data-name="'.htmlspecialchars($item['name']).'" data-price="'.$item['price'].'" data-img="'.$img.'">
             <div class="img-card-img-wrapper" onclick="'.$onclick.'">
                 <img src="'.$img.'" alt="'.htmlspecialchars($item['name']).'" onerror="this.src=\''.$ph.'\'">
             </div>
@@ -283,7 +276,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="category-section">
             <div class="category-title"><i class="bi bi-egg-fried"></i> Available Ulam Today</div>
             <div class="image-grid">
-                <!-- ✅ FIXED: Uses $custom_ulam_items to hide breakfast items from this grid -->
                 <?php foreach($custom_ulam_items as $item): ?>
                 <div class="img-card" onclick="openCustomOrderModal()" style="cursor:pointer">
                     <div class="img-card-img-wrapper"><img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>"></div>
@@ -298,7 +290,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="category-section">
             <div class="category-title"><i class="bi bi-cup-hot"></i> Breakfast Silog</div>
             <div class="image-grid">
-                <!-- ✅ STRICTLY CALLS BREAKFAST MODAL -->
                 <div class="img-card" onclick="openBreakfastModal()" style="cursor:pointer">
                     <div class="img-card-img-wrapper"><img src="../images/ulam/breakfast.jpg" alt="Breakfast Silog" onerror="this.src='https://via.placeholder.com/200?text=Breakfast'"></div>
                     <div class="img-card-info">
@@ -373,7 +364,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             <h3 id="ulamStepTitle">1. Choose 1-3 Ulam</h3>
             <div class="modal-images" id="ulamSelection">
                 <?php foreach($custom_ulam_items as $item): ?>
-                <div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" data-type="meat" onclick="toggleUlam(this)">
+                <div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" data-productid="<?=$item['productID']?>" data-type="meat" onclick="toggleUlam(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div>
                 </div>
@@ -395,7 +386,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             <h3 id="drinkStepTitle">3. Choose 1 Drink (Included)</h3>
             <div class="modal-images" id="drinkSelection">
                 <?php foreach($drinks_items as $item): ?>
-                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleDrink(this)">
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-productid="<?=$item['productID']?>" onclick="toggleDrink(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div>
                 </div>
@@ -409,7 +400,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </div>
 
-<!-- ============ CUSTOM ORDER MODAL (WITH OPTIONAL DRINK) ============ -->
+<!-- ============ CUSTOM ORDER MODAL ============ -->
 <div class="modal-overlay" id="customOrderModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -420,7 +411,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             <h3>1. Select 1-3 Ulam (Prices shown below)</h3>
             <div class="modal-images" id="customUlamSelection">
                 <?php foreach($custom_ulam_items as $item): ?>
-                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleCustomUlam(this)">
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-productid="<?=$item['productID']?>" data-price="<?=$item['price']?>" onclick="toggleCustomUlam(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div>
                 </div>
@@ -443,7 +434,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             <h3>3. Add a Drink? (Optional)</h3>
             <div class="modal-images" id="customDrinkSelection">
                 <?php foreach($drinks_items as $item): ?>
-                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleCustomDrink(this)">
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-productid="<?=$item['productID']?>" data-price="<?=$item['price']?>" onclick="toggleCustomDrink(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div>
                 </div>
@@ -460,7 +451,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </div>
 
-<!-- ============ BREAKFAST MODAL (STRICTLY SIDES ONLY) ============ -->
+<!-- ============ BREAKFAST MODAL ============ -->
 <div class="modal-overlay" id="breakfastModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -471,7 +462,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             <h3>1. Choose Your Breakfast Sides</h3>
             <div class="modal-images" id="breakfastSidesList">
                 <?php foreach($breakfast_sides as $item): ?>
-                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastSide(this)">
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-productid="<?=$item['productID'] ?? 0?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastSide(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div>
                 </div>
@@ -494,7 +485,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             <h3>3. Add a Drink? (Optional)</h3>
             <div class="modal-images" id="breakfastDrinkSelection">
                 <?php foreach($drinks_items as $item): ?>
-                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastDrink(this)">
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-productid="<?=$item['productID']?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastDrink(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div>
                 </div>
@@ -568,8 +559,8 @@ const riceMeals = <?=json_encode($rice_meals_list)?>;
 let selectedUlam=[], selectedRiceType='white', selectedDrink='', currentMeal=null;
 let selectedCustomUlam=[], customRiceType='white', selectedCustomDrink='';
 let selectedSides=[], breakfastRice='white', selectedBreakfastDrink='';
-let qtyModalCard=null, qtyModalName='', qtyModalPrice=0, qtyModalQty=1;
-let customAmountCard=null, customAmountName='', customAmountPrice=0;
+let qtyModalCard=null, qtyModalName='', qtyModalPrice=0, qtyModalQty=1, qtyModalProductID=0;
+let customAmountCard=null, customAmountName='', customAmountPrice=0, customAmountProductID=0;
 
 function closeSidebar() {
     document.getElementById('sidebar').classList.remove('open');
@@ -579,10 +570,12 @@ function closeSidebar() {
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
 function closeModal(id){document.getElementById(id).classList.remove('active')}
 
-function addToCart(name, price, qty){
+// ✅ UPDATED: Now sends productID to backend
+function addToCart(name, price, qty, productID){
     qty = qty || 1;
+    productID = productID || 0;
     return fetch('cart_actions.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:'action=add&name='+encodeURIComponent(name)+'&price='+price+'&quantity='+qty})
+        body:'action=add&name='+encodeURIComponent(name)+'&price='+price+'&quantity='+qty+'&productID='+productID})
     .then(r=>r.json()).then(d=>{ if(d.success){ refreshBadge(); } else showToast('❌ '+(d.message||'Error')); });
 }
 function refreshBadge(){
@@ -601,17 +594,18 @@ function changeCardQty(card, delta){
     el.textContent = q;
 }
 
+// ✅ UPDATED: Now sends productID
 function addFromCard(card){
     const name = card.dataset.name;
     const price = parseFloat(card.dataset.price);
+    const productID = parseInt(card.dataset.productid) || 0;
     const qty = parseInt(card.querySelector('.qty-display').textContent) || 1;
-    addToCart(name, price, qty).then(()=>{
+    addToCart(name, price, qty, productID).then(()=>{
         showToast('✅ ' + qty + ' x ' + name + ' added to cart!');
         card.querySelector('.qty-display').textContent = 1;
     });
 }
 
-// --- RICE MEAL MODAL LOGIC ---
 function openRiceMealModal(index){
     currentMeal = riceMeals[index];
     selectedUlam=[]; selectedRiceType='white'; selectedDrink='';
@@ -658,13 +652,12 @@ function confirmRiceMeal(){
     if (currentMeal.has_rice) desc += ', '+(selectedRiceType==='fried'?'Fried Rice':'White Rice');
     if (currentMeal.has_drink && selectedDrink) desc += ', '+selectedDrink;
     desc += ')';
-    addToCart(desc, currentMeal.price);
+    addToCart(desc, currentMeal.price, 1, 0);
     if (currentMeal.has_rice && selectedRiceType==='fried') deductFriedRice();
     closeModal('riceMealModal');
     showToast('✅ Added to cart!');
 }
 
-// --- CUSTOM ULAM MODAL LOGIC (WITH OPTIONAL DRINK) ---
 function openCustomOrderModal(){
     selectedCustomUlam=[]; customRiceType='white'; selectedCustomDrink='';
     document.getElementById('customOrderTotal').textContent='₱'+RICE_PRICE.toFixed(2);
@@ -678,14 +671,14 @@ function openCustomOrderModal(){
 }
 
 function toggleCustomUlam(el){
-    const name = el.dataset.name, price = parseFloat(el.dataset.price);
+    const name = el.dataset.name, price = parseFloat(el.dataset.price), productID = parseInt(el.dataset.productid) || 0;
     if(el.classList.contains('selected')){ 
         el.classList.remove('selected'); 
         selectedCustomUlam=selectedCustomUlam.filter(u=>u.name!==name); 
     } else {
         if(selectedCustomUlam.length<3){ 
             el.classList.add('selected'); 
-            selectedCustomUlam.push({name, price}); 
+            selectedCustomUlam.push({name, price, productID}); 
         } else showToast('Max 3 ulam!');
     }
     
@@ -702,7 +695,7 @@ function toggleCustomUlam(el){
 function toggleCustomDrink(el){
     document.querySelectorAll('#customDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     el.classList.add('selected');
-    selectedCustomDrink = { name: el.dataset.name, price: parseFloat(el.dataset.price) };
+    selectedCustomDrink = { name: el.dataset.name, price: parseFloat(el.dataset.price), productID: parseInt(el.dataset.productid) || 0 };
     updateCustomTotal();
 }
 
@@ -734,13 +727,12 @@ function confirmCustomOrder(){
         desc += ' + ' + selectedCustomDrink.name;
         total += selectedCustomDrink.price;
     }
-    addToCart(desc, total);
+    addToCart(desc, total, 1, 0);
     if(customRiceType==='fried') deductFriedRice();
     closeModal('customOrderModal');
     showToast('✅ Added to cart!');
 }
 
-// --- BREAKFAST MODAL LOGIC (STRICTLY SIDES ONLY) ---
 function openBreakfastModal(){
     selectedSides=[]; breakfastRice='white'; selectedBreakfastDrink='';
     document.getElementById('breakfastTotal').textContent='₱'+RICE_PRICE.toFixed(2);
@@ -754,13 +746,13 @@ function openBreakfastModal(){
 }
 
 function toggleBreakfastSide(el){
-    const name = el.dataset.name, price = parseFloat(el.dataset.price);
+    const name = el.dataset.name, price = parseFloat(el.dataset.price), productID = parseInt(el.dataset.productid) || 0;
     if(el.classList.contains('selected')){ 
         el.classList.remove('selected'); 
         selectedSides=selectedSides.filter(s=>s.name!==name); 
     } else { 
         el.classList.add('selected'); 
-        selectedSides.push({name,price}); 
+        selectedSides.push({name, price, productID}); 
         document.getElementById('breakfastDrinkSection').style.display='block';
     }
     updateBreakfastTotal();
@@ -770,7 +762,7 @@ function toggleBreakfastSide(el){
 function toggleBreakfastDrink(el){
     document.querySelectorAll('#breakfastDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     el.classList.add('selected');
-    selectedBreakfastDrink = { name: el.dataset.name, price: parseFloat(el.dataset.price) };
+    selectedBreakfastDrink = { name: el.dataset.name, price: parseFloat(el.dataset.price), productID: parseInt(el.dataset.productid) || 0 };
     updateBreakfastTotal();
 }
 
@@ -802,16 +794,18 @@ function confirmBreakfast(){
         desc += ' + ' + selectedBreakfastDrink.name;
         total += selectedBreakfastDrink.price;
     }
-    addToCart(desc, total);
+    addToCart(desc, total, 1, 0);
     if(breakfastRice==='fried') deductFriedRice();
     closeModal('breakfastModal');
     showToast('✅ Breakfast added to cart!');
 }
 
-// --- QTY & AMOUNT MODALS ---
 function openQtyModal(card){
     qtyModalCard = card;
-    qtyModalName = card.dataset.name; qtyModalPrice = parseFloat(card.dataset.price); qtyModalQty = 1;
+    qtyModalName = card.dataset.name; 
+    qtyModalPrice = parseFloat(card.dataset.price); 
+    qtyModalProductID = parseInt(card.dataset.productid) || 0;
+    qtyModalQty = 1;
     document.getElementById('qtyModalTitle').textContent = qtyModalName;
     document.getElementById('qtyModalImg').src = card.dataset.img;
     document.getElementById('qtyModalPrice').textContent = '₱'+qtyModalPrice;
@@ -825,7 +819,7 @@ function changeQtyModal(d){
     document.getElementById('qtyModalTotal').textContent = '₱'+(qtyModalPrice*qtyModalQty).toFixed(2);
 }
 function confirmQtyModal(){
-    addToCart(qtyModalName, qtyModalPrice, qtyModalQty).then(()=>{
+    addToCart(qtyModalName, qtyModalPrice, qtyModalQty, qtyModalProductID).then(()=>{
         if(qtyModalCard) qtyModalCard.querySelector('.qty-display').textContent = qtyModalQty;
         closeModal('qtyModal');
         showToast('✅ Added to cart!');
@@ -834,7 +828,9 @@ function confirmQtyModal(){
 
 function openCustomAmountModal(card){
     customAmountCard = card;
-    customAmountName = card.dataset.name; customAmountPrice = parseFloat(card.dataset.price);
+    customAmountName = card.dataset.name; 
+    customAmountPrice = parseFloat(card.dataset.price);
+    customAmountProductID = parseInt(card.dataset.productid) || 0;
     document.getElementById('customAmountTitle').textContent = customAmountName;
     document.getElementById('customAmountImg').src = card.dataset.img;
     document.getElementById('customAmountUnitPrice').textContent = '₱'+customAmountPrice+'/pc';
@@ -854,7 +850,7 @@ function confirmCustomAmount(){
     if(amount<15){ showToast('Minimum spend is ₱15'); return; }
     let qty = Math.floor(amount/customAmountPrice);
     if(qty<1){ showToast('Amount too low for this item'); return; }
-    addToCart(customAmountName, customAmountPrice, qty).then(()=>{
+    addToCart(customAmountName, customAmountPrice, qty, customAmountProductID).then(()=>{
         if(customAmountCard) customAmountCard.querySelector('.qty-display').textContent = qty;
         closeModal('customAmountModal');
         showToast('✅ Added to cart!');
