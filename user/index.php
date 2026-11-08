@@ -19,7 +19,6 @@ function imgTag($folder, $image){
         return "https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image";
     }
     
-    // Check multiple folders to find the image
     $folders = [$folder, 'meryenda', 'snacks', 'candies', 'drinks', 'noodles', 'essentials', 'ulam', ''];
     
     foreach ($folders as $f) {
@@ -212,7 +211,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .amount-preview{margin-top:.8rem;padding:10px;background:var(--brand-light);border-radius:8px;font-size:.9rem;color:var(--brand-red);font-weight:600}
 .toast{position:fixed;bottom:30px;right:30px;background:var(--brand-red);color:#fff;padding:14px 24px;border-radius:10px;font-weight:600;transform:translateY(100px);opacity:0;transition:all .3s;z-index:9999}
 .toast.show{transform:translateY(0);opacity:1}
-@media(max-width:768px){.sidebar{transform:translateX(-100%);transition:transform .3s}.sidebar.open{transform:translateX(0)}.main-content{margin-left:0}.mobile-toggle{display:block!important}}
+
+/* ✅ MOBILE SIDEBAR & OVERLAY FIX */
+.sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99; transition: opacity 0.3s; }
+.sidebar-overlay.active { display: block; }
+
+@media(max-width:768px){
+    .sidebar{transform:translateX(-100%);transition:transform .3s}
+    .sidebar.open{transform:translateX(0)}
+    .main-content{margin-left:0}
+    .mobile-toggle{display:block!important}
+}
 .mobile-toggle{display:none;background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text-dark)}
 </style>
 </head>
@@ -240,9 +249,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </aside>
 
+<!-- ✅ NEW: Dark overlay that closes sidebar when clicked -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
 <main class="main-content">
     <header class="top-header">
-        <button class="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="bi bi-list"></i></button>
+        <!-- ✅ UPDATED: Opens sidebar AND overlay -->
+        <button class="mobile-toggle" onclick="document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('active');"><i class="bi bi-list"></i></button>
         <div class="search-bar"><i class="bi bi-search"></i><input type="text" placeholder="Search menu..." id="searchInput"></div>
         <a href="cart.php" class="cart-btn"><i class="bi bi-basket3-fill"></i><span class="cart-badge" id="cartBadge"><?=$cart_count>0?$cart_count:'0'?></span></a>
     </header>
@@ -529,6 +542,12 @@ let selectedSides=[], breakfastRice='white';
 let qtyModalCard=null, qtyModalName='', qtyModalPrice=0, qtyModalQty=1;
 let customAmountCard=null, customAmountName='', customAmountPrice=0;
 
+// ✅ NEW: Function to close sidebar when clicking overlay
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+}
+
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
 function closeModal(id){document.getElementById(id).classList.remove('active')}
 function slugify(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')}
@@ -631,15 +650,17 @@ function confirmRiceMeal(){
     showToast('✅ Added to cart!');
 }
 
+// ✅ FIXED: Custom Order Modal now includes Rice Price in total
 function openCustomOrderModal(){
     selectedCustomUlam=[]; customRiceType='white';
-    document.getElementById('customOrderTotal').textContent='₱0.00';
+    document.getElementById('customOrderTotal').textContent='₱'+RICE_PRICE.toFixed(2); // Shows base rice price
     document.getElementById('btnConfirmCustom').disabled=true;
     document.querySelectorAll('#customUlamSelection .modal-img-option').forEach(e=>e.classList.remove('selected'));
     document.querySelectorAll('#customOrderModal .rice-type-option').forEach(e=>e.classList.remove('selected'));
     document.querySelector('#customOrderModal .rice-type-option[data-type="white"]').classList.add('selected');
     document.getElementById('customOrderModal').classList.add('active');
 }
+
 function toggleCustomUlam(el){
     const name = el.dataset.name, type = el.dataset.type || 'meat';
     if(el.classList.contains('selected')){ el.classList.remove('selected'); selectedCustomUlam=selectedCustomUlam.filter(u=>u.name!==name); }
@@ -647,19 +668,23 @@ function toggleCustomUlam(el){
         if(selectedCustomUlam.length<3){ el.classList.add('selected'); selectedCustomUlam.push({name,type}); }
         else showToast('Max 3 ulam!');
     }
-    let total = selectedCustomUlam.reduce((s,u)=>s+ULAM_PRICE[u.type],0);
+    // ✅ FIXED: Added RICE_PRICE to the calculation
+    let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+ULAM_PRICE[u.type],0);
     document.getElementById('customOrderTotal').textContent='₱'+total.toFixed(2);
     document.getElementById('btnConfirmCustom').disabled = selectedCustomUlam.length===0;
 }
+
 function selectCustomRiceType(el){
     if(el.dataset.type==='fried' && <?=$_SESSION['fried_rice_stock']?><=0){ showToast('Fried rice sold out!'); return; }
     customRiceType = el.dataset.type;
     document.querySelectorAll('#customOrderModal .rice-type-option').forEach(e=>e.classList.remove('selected'));
     el.classList.add('selected');
 }
+
 function confirmCustomOrder(){
     if(selectedCustomUlam.length===0) return;
-    let total = selectedCustomUlam.reduce((s,u)=>s+ULAM_PRICE[u.type],0);
+    // ✅ FIXED: Added RICE_PRICE to the final total
+    let total = RICE_PRICE + selectedCustomUlam.reduce((s,u)=>s+ULAM_PRICE[u.type],0);
     let desc = 'Custom Rice ('+selectedCustomUlam.map(u=>u.name).join(', ')+', '+(customRiceType==='fried'?'Fried Rice':'White Rice')+')';
     addToCart(desc, total);
     if(customRiceType==='fried') deductFriedRice();
