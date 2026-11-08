@@ -21,57 +21,45 @@ if (!isset($_SESSION['fried_rice_stock'])) { $_SESSION['fried_rice_stock'] = 20;
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
-// Load cart from database into session
+// ✅ Load cart from users table (JSON)
 function loadCartFromDB($con, $user_id) {
-    $stmt = $con->prepare("
-        SELECT c.cartID, c.productID, c.quantity, p.productname, p.price, p.is_available 
-        FROM cart c 
-        JOIN products p ON c.productID = p.productID 
-        WHERE c.user_id = ?
-    ");
+    $stmt = $con->prepare("SELECT cart_data FROM users WHERE user_id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
     
-    while ($row = $result->fetch_assoc()) {
-        $cartKey = md5($row['productname'] . $row['price']);
-        $_SESSION['cart'][$cartKey] = [
-            'cartID' => $row['cartID'],
-            'productID' => $row['productID'],
-            'name' => $row['productname'],
-            'price' => (float)$row['price'],
-            'quantity' => (int)$row['quantity'],
-            'is_available' => (int)$row['is_available']
-        ];
-    }
-}
-
-// Save cart to database (Only saves items that have a real productID)
-function saveCartToDB($con, $user_id, $cart) {
-    // Clear existing cart for this user
-    $stmt = $con->prepare("DELETE FROM cart WHERE user_id = ?");
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    
-    if (empty($cart)) return;
-    
-    $stmt = $con->prepare("INSERT INTO cart (user_id, productID, quantity) VALUES (?, ?, ?)");
-    
-    foreach ($cart as $item) {
-        // ✅ FIX: Only save to DB if it has a valid productID (skip custom combos)
-        if (isset($item['productID']) && $item['productID'] > 0) {
-            $stmt->bind_param("iii", $user_id, $item['productID'], $item['quantity']);
-            $stmt->execute();
+    if ($row = $result->fetch_assoc()) {
+        if (!empty($row['cart_data'])) {
+            $savedCart = json_decode($row['cart_data'], true);
+            if (is_array($savedCart)) {
+                $_SESSION['cart'] = $savedCart;
+            }
         }
     }
 }
 
-// Check if items are still available
+// ✅ Save entire session cart to users table (JSON)
+function saveCartToDB($con, $user_id, $cart) {
+    $cartJson = json_encode($cart);
+    $stmt = $con->prepare("UPDATE users SET cart_data = ? WHERE user_id = ?");
+    $stmt->bind_param("si", $cartJson, $user_id);
+    $stmt->execute();
+}
+
 function checkItemAvailability($con, $cart) {
     $unavailable = [];
     foreach ($cart as $key => $item) {
-        if (isset($item['is_available']) && $item['is_available'] == 0) {
-            $unavailable[$key] = $item['name'];
+        // Only check availability for real products (productID > 0)
+        if (isset($item['productID']) && $item['productID'] > 0) {
+            $stmt = $con->prepare("SELECT is_available FROM products WHERE productID = ?");
+            $stmt->bind_param("i", $item['productID']);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($row = $res->fetch_assoc()) {
+                if ($row['is_available'] == 0) {
+                    $unavailable[$key] = $item['name'];
+                }
+            }
         }
     }
     return $unavailable;
@@ -111,7 +99,6 @@ switch ($action) {
         
         if ($qty < 1) $qty = 1;
 
-        // ✅ FIX: Removed "|| $productID <= 0" so custom meals can be added
         if (empty($name) || $price <= 0) {
             echo json_encode(['success' => false, 'message' => 'Invalid item.']);
             exit();
@@ -156,6 +143,7 @@ switch ($action) {
         break;
 
     case 'get':
+        // Reload from DB to ensure we have the latest state
         $_SESSION['cart'] = [];
         loadCartFromDB($con, $user_id);
         
@@ -261,7 +249,7 @@ switch ($action) {
             $con->commit();
             
             $_SESSION['cart'] = [];
-            saveCartToDB($con, $user_id, []);
+            saveCartToDB($con, $user_id, []); // Clear cart in DB
 
             echo json_encode([
                 'success' => true, 
@@ -269,13 +257,4 @@ switch ($action) {
                 'order_id' => $newOrderId
             ]);
 
-        } catch (Exception $e) {
-            if ($con) $con->rollback();
-            echo json_encode(['success' => false, 'message' => 'Checkout failed: ' . $e->getMessage()]);
-        }
-        break;
-
-    default:
-        echo json_encode(['success' => false, 'message' => 'Invalid action.']);
-}
-?>
+       
