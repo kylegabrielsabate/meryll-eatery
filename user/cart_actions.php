@@ -2,12 +2,6 @@
 session_start();
 include '../connect.php';
 
-// Load PHPMailer
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -24,6 +18,11 @@ if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
 if (!isset($_SESSION['fried_rice_stock'])) { $_SESSION['fried_rice_stock'] = 20; }
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
+
+// ✅ RESEND API KEY (Replace with your actual Resend API Key)
+// You can find this in your Resend dashboard: https://resend.com/api-keys
+$RESEND_API_KEY = getenv('RESEND_API_KEY') ?: 're_PLACEHOLDER'; 
+$RESEND_FROM_EMAIL = getenv('RESEND_FROM_EMAIL') ?: 'onboarding@resend.dev';
 
 function loadCartFromDB($con, $user_id) {
     $uid = (int)$user_id;
@@ -63,21 +62,9 @@ function checkItemAvailability($con, $cart) {
     return $unavailable;
 }
 
-function cartTotalItems($cart) { 
-    $total = 0; 
-    foreach ($cart as $item) $total += $item['quantity']; 
-    return $total; 
-}
-
-function cartTotalPrice($cart) { 
-    $total = 0; 
-    foreach ($cart as $item) $total += ($item['price'] * $item['quantity']); 
-    return $total; 
-}
-
-function isValidKey($key) { 
-    return preg_match('/^[a-f0-9]{32}$/', $key); 
-}
+function cartTotalItems($cart) { $total = 0; foreach ($cart as $item) $total += $item['quantity']; return $total; }
+function cartTotalPrice($cart) { $total = 0; foreach ($cart as $item) $total += ($item['price'] * $item['quantity']); return $total; }
+function isValidKey($key) { return preg_match('/^[a-f0-9]{32}$/', $key); }
 
 function generateOrderNumber($con) {
     $date = date('Ymd');
@@ -88,8 +75,9 @@ function generateOrderNumber($con) {
     return $prefix . str_pad($count, 3, '0', STR_PAD_LEFT);
 }
 
-// ✅ SEND EMAIL RECEIPT
-function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $cart_items) {
+// ✅ FUNCTION TO SEND EMAIL RECEIPT VIA RESEND
+function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $cart_items, $api_key, $from_email) {
+    // 1. Get User Email
     $stmt = $con->prepare("SELECT email, username FROM users WHERE user_id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -97,13 +85,14 @@ function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_t
     
     if (!$user || empty($user['email'])) return false;
 
+    // 2. Build HTML Receipt
     $items_html = '';
     foreach ($cart_items as $item) {
         $items_html .= '<tr>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;">' . htmlspecialchars($item['name']) . '</td>
-            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">' . $item['quantity'] . '</td>
-            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₱' . number_format($item['price'], 2) . '</td>
-            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: 600;">₱' . number_format($item['price'] * $item['quantity'], 2) . '</td>
+            <td style="padding: 12px; border-bottom: 1px solid #eee;">' . htmlspecialchars($item['name']) . '</td>
+            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">' . $item['quantity'] . '</td>
+            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">₱' . number_format($item['price'], 2) . '</td>
+            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right; font-weight: 600;">₱' . number_format($item['price'] * $item['quantity'], 2) . '</td>
         </tr>';
     }
 
@@ -151,29 +140,30 @@ function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_t
         </div>
     </div>";
 
-    $mail = new PHPMailer(true);
-    try {
-        $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'YOUR_GMAIL@gmail.com'; // ⚠️ REPLACE WITH YOUR GMAIL
-        $mail->Password   = 'YOUR_APP_PASSWORD';    // ⚠️ REPLACE WITH YOUR 16-CHAR APP PASSWORD
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+    // 3. Send via Resend API using cURL
+    $url = 'https://api.resend.com/emails';
+    $payload = json_encode([
+        'from'    => 'Meryll Eatery <' . $from_email . '>',
+        'to'      => [$user['email']],
+        'subject' => 'Order Confirmation #' . $order_number . ' - Meryll Eatery',
+        'html'    => $html_body
+    ]);
 
-        $mail->setFrom('YOUR_GMAIL@gmail.com', 'Meryll Eatery');
-        $mail->addAddress($user['email'], $user['username']);
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $api_key,
+        'Content-Type: application/json'
+    ]);
 
-        $mail->isHTML(true);
-        $mail->Subject = 'Order Confirmation #' . $order_number . ' - Meryll Eatery';
-        $mail->Body    = $html_body;
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
 
-        $mail->send();
-        return true;
-    } catch (Exception $e) {
-        error_log("Email failed: {$mail->ErrorInfo}");
-        return false;
-    }
+    // Return true if Resend accepted it (200 or 201)
+    return ($http_code >= 200 && $http_code < 300);
 }
 
 switch ($action) {
@@ -183,20 +173,11 @@ switch ($action) {
         $qty   = intval($_POST['quantity'] ?? 1);
         $productID = intval($_POST['productID'] ?? 0);
         if ($qty < 1) $qty = 1;
-        if (empty($name) || $price <= 0) { 
-            echo json_encode(['success' => false, 'message' => 'Invalid item.']); 
-            exit(); 
-        }
+        if (empty($name) || $price <= 0) { echo json_encode(['success' => false, 'message' => 'Invalid item.']); exit(); }
 
         $cartKey = md5($name . $price);
         if (!isset($_SESSION['cart'][$cartKey])) {
-            $_SESSION['cart'][$cartKey] = [
-                'productID' => $productID, 
-                'name' => $name, 
-                'price' => $price, 
-                'quantity' => 0, 
-                'is_available' => 1
-            ];
+            $_SESSION['cart'][$cartKey] = ['productID' => $productID, 'name' => $name, 'price' => $price, 'quantity' => 0, 'is_available' => 1];
         }
         $_SESSION['cart'][$cartKey]['quantity'] += $qty;
         saveCartToDB($con, $user_id, $_SESSION['cart']);
@@ -204,8 +185,7 @@ switch ($action) {
         break;
 
     case 'update':
-        $cartKey = $_POST['cart_key'] ?? ''; 
-        $change = intval($_POST['change'] ?? 0);
+        $cartKey = $_POST['cart_key'] ?? ''; $change = intval($_POST['change'] ?? 0);
         if (isValidKey($cartKey) && isset($_SESSION['cart'][$cartKey])) {
             $_SESSION['cart'][$cartKey]['quantity'] += $change;
             if ($_SESSION['cart'][$cartKey]['quantity'] <= 0) unset($_SESSION['cart'][$cartKey]);
@@ -222,62 +202,31 @@ switch ($action) {
         break;
 
     case 'get':
-        $_SESSION['cart'] = []; 
-        loadCartFromDB($con, $user_id);
+        $_SESSION['cart'] = []; loadCartFromDB($con, $user_id);
         $unavailable = checkItemAvailability($con, $_SESSION['cart']);
         $items = [];
         foreach ($_SESSION['cart'] as $key => $item) {
-            $items[] = [
-                'cart_key' => $key, 
-                'productID' => $item['productID'], 
-                'name' => $item['name'], 
-                'price' => $item['price'], 
-                'quantity' => $item['quantity'], 
-                'subtotal' => $item['price'] * $item['quantity'], 
-                'is_available' => !isset($unavailable[$key])
-            ];
+            $items[] = ['cart_key' => $key, 'productID' => $item['productID'], 'name' => $item['name'], 'price' => $item['price'], 'quantity' => $item['quantity'], 'subtotal' => $item['price'] * $item['quantity'], 'is_available' => !isset($unavailable[$key])];
         }
-        echo json_encode([
-            'success' => true, 
-            'items' => $items, 
-            'total_items' => cartTotalItems($_SESSION['cart']), 
-            'total_price' => cartTotalPrice($_SESSION['cart']), 
-            'unavailable' => $unavailable
-        ]);
+        echo json_encode(['success' => true, 'items' => $items, 'total_items' => cartTotalItems($_SESSION['cart']), 'total_price' => cartTotalPrice($_SESSION['cart']), 'unavailable' => $unavailable]);
         break;
 
     case 'clear':
-        $_SESSION['cart'] = []; 
-        saveCartToDB($con, $user_id, []);
+        $_SESSION['cart'] = []; saveCartToDB($con, $user_id, []);
         echo json_encode(['success' => true]);
         break;
 
     case 'deduct_fried_rice':
-        if ($_SESSION['fried_rice_stock'] > 0) { 
-            $_SESSION['fried_rice_stock']--; 
-            echo json_encode(['success' => true]); 
-        } else { 
-            echo json_encode(['success' => false]); 
-        }
+        if ($_SESSION['fried_rice_stock'] > 0) { $_SESSION['fried_rice_stock']--; echo json_encode(['success' => true]); }
+        else { echo json_encode(['success' => false]); }
         break;
 
     case 'checkout':
-        $_SESSION['cart'] = []; 
-        loadCartFromDB($con, $user_id);
-        
-        if (empty($_SESSION['cart'])) { 
-            echo json_encode(['success' => false, 'message' => 'Your cart is empty.']); 
-            exit(); 
-        }
+        $_SESSION['cart'] = []; loadCartFromDB($con, $user_id);
+        if (empty($_SESSION['cart'])) { echo json_encode(['success' => false, 'message' => 'Your cart is empty.']); exit(); }
 
         $unavailable = checkItemAvailability($con, $_SESSION['cart']);
-        if (!empty($unavailable)) { 
-            echo json_encode([
-                'success' => false, 
-                'message' => 'Some items are no longer available: ' . implode(', ', $unavailable)
-            ]); 
-            exit(); 
-        }
+        if (!empty($unavailable)) { echo json_encode(['success' => false, 'message' => 'Some items are no longer available: ' . implode(', ', $unavailable)]); exit(); }
 
         $total_amount = cartTotalPrice($_SESSION['cart']);
         $status = 'Pending';
@@ -289,7 +238,6 @@ switch ($action) {
 
         try {
             $con->begin_transaction();
-            
             $maxOrderId = 0;
             $res = $con->query("SELECT MAX(order_id) as max_id FROM orders");
             if ($row = $res->fetch_assoc()) $maxOrderId = $row['max_id'] ? $row['max_id'] : 0;
@@ -307,17 +255,15 @@ switch ($action) {
 
             $stmt_item = $con->prepare("INSERT INTO order_items (order_item_id, order_id, item_name, quantity, price) VALUES (?, ?, ?, ?, ?)");
             if (!$stmt_item) throw new Exception("Prepare items failed: " . $con->error);
-            
             foreach ($_SESSION['cart'] as $item) {
                 $stmt_item->bind_param("iisdd", $newItemId, $newOrderId, $item['name'], $item['quantity'], $item['price']);
                 $stmt_item->execute();
                 $newItemId++;
             }
-            
             $con->commit();
 
-            // ✅ SEND EMAIL RECEIPT
-            $emailSent = sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $_SESSION['cart']);
+            // ✅ SEND EMAIL RECEIPT VIA RESEND
+            $emailSent = sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $_SESSION['cart'], $RESEND_API_KEY, $RESEND_FROM_EMAIL);
 
             $_SESSION['cart'] = [];
             saveCartToDB($con, $user_id, []);
@@ -329,12 +275,7 @@ switch ($action) {
                 $message .= ' - Please screenshot this page as your receipt.';
             }
 
-            echo json_encode([
-                'success' => true, 
-                'message' => $message, 
-                'order_id' => $newOrderId,
-                'order_number' => $order_number
-            ]);
+            echo json_encode(['success' => true, 'message' => $message, 'order_id' => $newOrderId, 'order_number' => $order_number]);
 
         } catch (Exception $e) {
             if ($con) $con->rollback();

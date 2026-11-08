@@ -1,36 +1,41 @@
 <?php
-// Get API key and Base URL from Render Environment Variables
-// NOTE: The placeholder ensures GitHub never blocks your push again!
-define('RESEND_API_KEY', trim(getenv('RESEND_API_KEY')) ?: 're_test_key_placeholder');
-define('BASE_URL', trim(getenv('BASE_URL')) ?: 'http://localhost/kuyabatas/user');
+// Base URL from Render Environment Variables
+define('BASE_URL', trim(getenv('BASE_URL')) ?: 'https://meryll-eatery.onrender.com/user');
+
+// ✅ SECURE: Read from Environment Variables (Render will provide these)
+define('SMTP_HOST', 'smtp.gmail.com');
+define('SMTP_PORT', 587);
+define('SMTP_USER', getenv('SMTP_USER') ?: 'placeholder@gmail.com'); 
+define('SMTP_PASS', getenv('SMTP_PASS') ?: 'placeholder_app_password');      
+define('SMTP_FROM_NAME', 'Meryll Eatery');
 
 function sendMail($toEmail, $subject, $htmlBody) {
-    $url = 'https://api.resend.com/emails';
-    
-    $data = [
-        'from' => 'Meryll Eatery <onboarding@resend.dev>', 
-        'to' => [$toEmail],
-        'subject' => $subject,
-        'html' => $htmlBody
-    ];
+    // Load PHPMailer (installed via composer.json)
+    require_once __DIR__ . '/../vendor/autoload.php';
+    use PHPMailer\PHPMailer\PHPMailer;
+    use PHPMailer\PHPMailer\Exception;
 
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . RESEND_API_KEY,
-        'Content-Type: application/json'
-    ]);
+    $mail = new PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host       = SMTP_HOST;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = SMTP_USER;
+        $mail->Password   = SMTP_PASS;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = SMTP_PORT;
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+        $mail->setFrom(SMTP_USER, SMTP_FROM_NAME);
+        $mail->addAddress($toEmail);
 
-    if ($httpCode >= 200 && $httpCode < 300) {
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body    = $htmlBody;
+
+        $mail->send();
         return ['success' => true];
-    } else {
-        return ['success' => false, 'message' => 'Resend API Error: HTTP ' . $httpCode];
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Mailer Error: ' . $mail->ErrorInfo];
     }
 }
 ?>
