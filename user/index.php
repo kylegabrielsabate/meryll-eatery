@@ -13,17 +13,21 @@ foreach ($_SESSION['cart'] as $item) $cart_count += $item['quantity'];
 
 function slugify($s){ return trim(preg_replace('/[^a-z0-9]+/','_', strtolower($s)), '_'); }
 
-// ✅ SMART IMAGE FINDER: Checks subfolder first, then root folder, then placeholder
+// ✅ SMART IMAGE FINDER: Searches all folders to find the image
 function imgTag($folder, $image){ 
     if (empty($image) || $image === 'placeholder.jpg') {
         return "https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image";
     }
-    $path = __DIR__ . "/../images/$folder/$image";
-    if (file_exists($path)) return "../images/$folder/$image";
     
-    // Fallback to root images folder just in case
-    $rootPath = __DIR__ . "/../images/$image";
-    if (file_exists($rootPath)) return "../images/$image";
+    // Check multiple folders to find the image
+    $folders = [$folder, 'meryenda', 'snacks', 'candies', 'drinks', 'noodles', 'essentials', 'ulam', ''];
+    
+    foreach ($folders as $f) {
+        $path = __DIR__ . "/../images/" . ($f ? $f . "/" : "") . $image;
+        if (file_exists($path)) {
+            return "../images/" . ($f ? $f . "/" : "") . $image;
+        }
+    }
     
     return "https://via.placeholder.com/200x160/8B0000/ffffff?text=" . urlencode(str_replace(' ', '+', $image));
 }
@@ -54,9 +58,6 @@ $accesories_items = [
 
 // ==========================================
 // ✅ DYNAMIC FETCH FROM DATABASE
-// This ensures the user side matches the admin side exactly!
-// Ordered by productID ASC so older items (Siomai, Corndog) are at the top, 
-// and newer items (Snacks) are at the bottom.
 // ==========================================
 $ulam_items = [];
 $meryenda_items = [];
@@ -80,7 +81,7 @@ if ($res) {
         
         switch ($row['categoryID']) {
             case 1: $item['folder'] = 'ulam'; $ulam_items[] = $item; break;
-            case 2: $item['folder'] = 'meryenda'; $meryenda_items[] = $item; break; // Snacks are now here!
+            case 2: $item['folder'] = 'meryenda'; $meryenda_items[] = $item; break; 
             case 3: $item['folder'] = 'candies'; $candies_items[] = $item; break;
             case 4: $item['folder'] = 'drinks'; $coffee_items[] = $item; break;
             case 5: $item['folder'] = 'drinks'; $drinks_items[] = $item; break;
