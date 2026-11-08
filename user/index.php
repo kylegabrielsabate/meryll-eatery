@@ -87,7 +87,7 @@ if ($res) {
     }
 }
 
-// ✅ FILTER: Remove breakfast items from the Custom Ulam modal so they don't mix
+// ✅ FILTER: Remove breakfast items from the Custom Ulam modal AND dashboard grid
 $custom_ulam_items = array_filter($ulam_items, function($item) {
     return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice']);
 });
@@ -283,7 +283,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="category-section">
             <div class="category-title"><i class="bi bi-egg-fried"></i> Available Ulam Today</div>
             <div class="image-grid">
-                <?php foreach($ulam_items as $item): ?>
+                <!-- ✅ FIXED: Uses $custom_ulam_items to hide breakfast items from this grid -->
+                <?php foreach($custom_ulam_items as $item): ?>
                 <div class="img-card" onclick="openCustomOrderModal()" style="cursor:pointer">
                     <div class="img-card-img-wrapper"><img src="<?=imgTag($item['folder'],$item['image'])?>" alt="<?=htmlspecialchars($item['name'])?>"></div>
                     <div class="img-card-info"><div class="img-card-name"><?=htmlspecialchars($item['name'])?></div></div>
@@ -438,7 +439,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
             </div>
             <div class="rice-price-note">Rice is ₱15 and is automatically added to your total.</div>
         </div>
-        <!-- ✅ NEW: Optional Drink Section for Custom Ulam -->
         <div class="modal-section" id="customDrinkSection" style="display:none">
             <h3>3. Add a Drink? (Optional)</h3>
             <div class="modal-images" id="customDrinkSelection">
@@ -469,7 +469,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         </div>
         <div class="modal-section">
             <h3>1. Choose Your Breakfast Sides</h3>
-            <!-- ✅ STRICTLY LOOPS THROUGH $breakfast_sides ONLY -->
             <div class="modal-images" id="breakfastSidesList">
                 <?php foreach($breakfast_sides as $item): ?>
                 <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastSide(this)">
@@ -690,7 +689,6 @@ function toggleCustomUlam(el){
         } else showToast('Max 3 ulam!');
     }
     
-    // Show drink section only if ulam is selected
     if(selectedCustomUlam.length > 0) {
         document.getElementById('customDrinkSection').style.display='block';
     } else {
