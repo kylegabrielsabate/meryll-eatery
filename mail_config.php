@@ -1,8 +1,12 @@
 <?php
+// ✅ PHPMailer Classes (Must be at the top!)
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 // Base URL from Render Environment Variables
 define('BASE_URL', trim(getenv('BASE_URL')) ?: 'https://meryll-eatery.onrender.com/user');
 
-// ✅ SECURE: Read from Environment Variables (Render will provide these)
+// ✅ SECURE: Read from Environment Variables
 define('SMTP_HOST', 'smtp.gmail.com');
 define('SMTP_PORT', 587);
 define('SMTP_USER', getenv('SMTP_USER') ?: 'placeholder@gmail.com'); 
@@ -10,10 +14,8 @@ define('SMTP_PASS', getenv('SMTP_PASS') ?: 'placeholder_app_password');
 define('SMTP_FROM_NAME', 'Meryll Eatery');
 
 function sendMail($toEmail, $subject, $htmlBody) {
-    // Load PHPMailer (installed via composer.json)
+    // Load Composer autoloader
     require_once __DIR__ . '/../vendor/autoload.php';
-    use PHPMailer\PHPMailer\PHPMailer;
-    use PHPMailer\PHPMailer\Exception;
 
     $mail = new PHPMailer(true);
     try {
