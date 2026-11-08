@@ -2,6 +2,12 @@
 session_start();
 include '../connect.php';
 
+// Load PHPMailer
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -9,42 +15,33 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// ✅ FORCE USER ID TO INTEGER TO FIX DATABASE SAVING ISSUES
 $user_id = (int)$_SESSION['user_id'];
 
-// Initialize cart from database if session is empty
 if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
     loadCartFromDB($con, $user_id);
 }
-
 if (!isset($_SESSION['fried_rice_stock'])) { $_SESSION['fried_rice_stock'] = 20; }
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
-// ✅ Load cart from users table (JSON)
 function loadCartFromDB($con, $user_id) {
-    $uid = (int)$user_id; // Ensure integer for database
+    $uid = (int)$user_id;
     $stmt = $con->prepare("SELECT cart_data FROM users WHERE user_id = ?");
     $stmt->bind_param("i", $uid);
     $stmt->execute();
     $result = $stmt->get_result();
-    
     if ($row = $result->fetch_assoc()) {
         if (!empty($row['cart_data'])) {
             $savedCart = json_decode($row['cart_data'], true);
-            if (is_array($savedCart)) {
-                $_SESSION['cart'] = $savedCart;
-            }
+            if (is_array($savedCart)) $_SESSION['cart'] = $savedCart;
         }
     }
 }
 
-// ✅ Save entire session cart to users table (JSON)
 function saveCartToDB($con, $user_id, $cart) {
-    $uid = (int)$user_id; // Ensure integer for database
+    $uid = (int)$user_id;
     $cartJson = json_encode($cart);
-    
     $stmt = $con->prepare("UPDATE users SET cart_data = ? WHERE user_id = ?");
     $stmt->bind_param("si", $cartJson, $uid);
     $stmt->execute();
@@ -59,29 +56,27 @@ function checkItemAvailability($con, $cart) {
             $stmt->execute();
             $res = $stmt->get_result();
             if ($row = $res->fetch_assoc()) {
-                if ($row['is_available'] == 0) {
-                    $unavailable[$key] = $item['name'];
-                }
+                if ($row['is_available'] == 0) $unavailable[$key] = $item['name'];
             }
         }
     }
     return $unavailable;
 }
 
-function cartTotalItems($cart) {
-    $total = 0;
-    foreach ($cart as $item) { $total += $item['quantity']; }
-    return $total;
+function cartTotalItems($cart) { 
+    $total = 0; 
+    foreach ($cart as $item) $total += $item['quantity']; 
+    return $total; 
 }
 
-function cartTotalPrice($cart) {
-    $total = 0;
-    foreach ($cart as $item) { $total += ($item['price'] * $item['quantity']); }
-    return $total;
+function cartTotalPrice($cart) { 
+    $total = 0; 
+    foreach ($cart as $item) $total += ($item['price'] * $item['quantity']); 
+    return $total; 
 }
 
-function isValidKey($key) {
-    return preg_match('/^[a-f0-9]{32}$/', $key);
+function isValidKey($key) { 
+    return preg_match('/^[a-f0-9]{32}$/', $key); 
 }
 
 function generateOrderNumber($con) {
@@ -93,41 +88,124 @@ function generateOrderNumber($con) {
     return $prefix . str_pad($count, 3, '0', STR_PAD_LEFT);
 }
 
+// ✅ SEND EMAIL RECEIPT
+function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $cart_items) {
+    $stmt = $con->prepare("SELECT email, username FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    
+    if (!$user || empty($user['email'])) return false;
+
+    $items_html = '';
+    foreach ($cart_items as $item) {
+        $items_html .= '<tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">' . htmlspecialchars($item['name']) . '</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">' . $item['quantity'] . '</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₱' . number_format($item['price'], 2) . '</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: 600;">₱' . number_format($item['price'] * $item['quantity'], 2) . '</td>
+        </tr>';
+    }
+
+    $html_body = "
+    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #8B0000; border-radius: 10px; overflow: hidden;'>
+        <div style='background: #8B0000; color: white; padding: 25px; text-align: center;'>
+            <h1 style='margin: 0; font-size: 28px;'>🍽️ Meryll Eatery</h1>
+            <p style='margin: 10px 0 0 0; font-size: 16px;'>Order Receipt</p>
+        </div>
+        <div style='padding: 25px;'>
+            <p style='font-size: 16px;'>Hello <strong>" . htmlspecialchars($user['username']) . "</strong>,</p>
+            <p style='font-size: 14px; color: #555;'>Thank you for your order! Please show this receipt when claiming your food.</p>
+            
+            <div style='background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8B0000;'>
+                <p style='margin: 8px 0;'><strong>Order #:</strong> " . htmlspecialchars($order_number) . "</p>
+                <p style='margin: 8px 0;'><strong>Date:</strong> " . date('F j, Y \a\t g:i A') . "</p>
+                <p style='margin: 8px 0;'><strong>Order Type:</strong> " . htmlspecialchars($order_type) . "</p>
+                <p style='margin: 8px 0;'><strong>Pickup Time:</strong> " . htmlspecialchars($pickup_time) . "</p>
+                " . (!empty($order_note) ? "<p style='margin: 8px 0;'><strong>Note:</strong> " . htmlspecialchars($order_note) . "</p>" : "") . "
+            </div>
+
+            <table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>
+                <thead>
+                    <tr style='background: #f4f4f4;'>
+                        <th style='padding: 12px; text-align: left; border-bottom: 2px solid #ddd;'>Item</th>
+                        <th style='padding: 12px; text-align: center; border-bottom: 2px solid #ddd;'>Qty</th>
+                        <th style='padding: 12px; text-align: right; border-bottom: 2px solid #ddd;'>Price</th>
+                        <th style='padding: 12px; text-align: right; border-bottom: 2px solid #ddd;'>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    $items_html
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan='3' style='padding: 15px 10px; text-align: right; font-weight: bold; font-size: 18px; border-top: 2px solid #8B0000;'>Total:</td>
+                        <td style='padding: 15px 10px; text-align: right; font-weight: bold; font-size: 18px; color: #8B0000; border-top: 2px solid #8B0000;'>₱" . number_format($total_amount, 2) . "</td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <div style='text-align: center; margin-top: 30px; padding: 20px; background: #fff0f0; border-radius: 8px;'>
+                <p style='margin: 0; color: #8B0000; font-size: 16px; font-weight: 600;'>See you at Meryll Eatery! 🎉</p>
+            </div>
+        </div>
+    </div>";
+
+    $mail = new PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'YOUR_GMAIL@gmail.com'; // ⚠️ REPLACE WITH YOUR GMAIL
+        $mail->Password   = 'YOUR_APP_PASSWORD';    // ⚠️ REPLACE WITH YOUR 16-CHAR APP PASSWORD
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
+
+        $mail->setFrom('YOUR_GMAIL@gmail.com', 'Meryll Eatery');
+        $mail->addAddress($user['email'], $user['username']);
+
+        $mail->isHTML(true);
+        $mail->Subject = 'Order Confirmation #' . $order_number . ' - Meryll Eatery';
+        $mail->Body    = $html_body;
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Email failed: {$mail->ErrorInfo}");
+        return false;
+    }
+}
+
 switch ($action) {
     case 'add':
         $name  = trim($_POST['name'] ?? '');
         $price = floatval($_POST['price'] ?? 0);
         $qty   = intval($_POST['quantity'] ?? 1);
         $productID = intval($_POST['productID'] ?? 0);
-        
         if ($qty < 1) $qty = 1;
-
-        if (empty($name) || $price <= 0) {
-            echo json_encode(['success' => false, 'message' => 'Invalid item.']);
-            exit();
+        if (empty($name) || $price <= 0) { 
+            echo json_encode(['success' => false, 'message' => 'Invalid item.']); 
+            exit(); 
         }
 
         $cartKey = md5($name . $price);
-        
         if (!isset($_SESSION['cart'][$cartKey])) {
             $_SESSION['cart'][$cartKey] = [
-                'productID' => $productID,
-                'name' => $name,
-                'price' => $price,
-                'quantity' => 0,
+                'productID' => $productID, 
+                'name' => $name, 
+                'price' => $price, 
+                'quantity' => 0, 
                 'is_available' => 1
             ];
         }
         $_SESSION['cart'][$cartKey]['quantity'] += $qty;
-
         saveCartToDB($con, $user_id, $_SESSION['cart']);
-
         echo json_encode(['success' => true, 'message' => 'Added!', 'total_items' => cartTotalItems($_SESSION['cart'])]);
         break;
 
     case 'update':
-        $cartKey = $_POST['cart_key'] ?? '';
-        $change  = intval($_POST['change'] ?? 0);
+        $cartKey = $_POST['cart_key'] ?? ''; 
+        $change = intval($_POST['change'] ?? 0);
         if (isValidKey($cartKey) && isset($_SESSION['cart'][$cartKey])) {
             $_SESSION['cart'][$cartKey]['quantity'] += $change;
             if ($_SESSION['cart'][$cartKey]['quantity'] <= 0) unset($_SESSION['cart'][$cartKey]);
@@ -138,80 +216,73 @@ switch ($action) {
 
     case 'remove':
         $cartKey = $_POST['cart_key'] ?? '';
-        if (isValidKey($cartKey) && isset($_SESSION['cart'][$cartKey])) {
-            unset($_SESSION['cart'][$cartKey]);
-        }
+        if (isValidKey($cartKey) && isset($_SESSION['cart'][$cartKey])) unset($_SESSION['cart'][$cartKey]);
         saveCartToDB($con, $user_id, $_SESSION['cart']);
         echo json_encode(['success' => true, 'total_items' => cartTotalItems($_SESSION['cart'])]);
         break;
 
     case 'get':
-        $_SESSION['cart'] = [];
+        $_SESSION['cart'] = []; 
         loadCartFromDB($con, $user_id);
-        
         $unavailable = checkItemAvailability($con, $_SESSION['cart']);
-        
         $items = [];
         foreach ($_SESSION['cart'] as $key => $item) {
             $items[] = [
-                'cart_key' => $key,
-                'productID' => $item['productID'],
-                'name' => $item['name'],
-                'price' => $item['price'],
-                'quantity' => $item['quantity'],
-                'subtotal' => $item['price'] * $item['quantity'],
+                'cart_key' => $key, 
+                'productID' => $item['productID'], 
+                'name' => $item['name'], 
+                'price' => $item['price'], 
+                'quantity' => $item['quantity'], 
+                'subtotal' => $item['price'] * $item['quantity'], 
                 'is_available' => !isset($unavailable[$key])
             ];
         }
-        
         echo json_encode([
-            'success' => true,
-            'items' => $items,
-            'total_items' => cartTotalItems($_SESSION['cart']),
-            'total_price' => cartTotalPrice($_SESSION['cart']),
+            'success' => true, 
+            'items' => $items, 
+            'total_items' => cartTotalItems($_SESSION['cart']), 
+            'total_price' => cartTotalPrice($_SESSION['cart']), 
             'unavailable' => $unavailable
         ]);
         break;
 
     case 'clear':
-        $_SESSION['cart'] = [];
+        $_SESSION['cart'] = []; 
         saveCartToDB($con, $user_id, []);
         echo json_encode(['success' => true]);
         break;
 
     case 'deduct_fried_rice':
-        if ($_SESSION['fried_rice_stock'] > 0) {
-            $_SESSION['fried_rice_stock']--;
-            echo json_encode(['success' => true]);
-        } else {
-            echo json_encode(['success' => false]);
+        if ($_SESSION['fried_rice_stock'] > 0) { 
+            $_SESSION['fried_rice_stock']--; 
+            echo json_encode(['success' => true]); 
+        } else { 
+            echo json_encode(['success' => false]); 
         }
         break;
 
     case 'checkout':
-        $_SESSION['cart'] = [];
+        $_SESSION['cart'] = []; 
         loadCartFromDB($con, $user_id);
         
-        if (empty($_SESSION['cart'])) {
-            echo json_encode(['success' => false, 'message' => 'Your cart is empty.']);
-            exit();
+        if (empty($_SESSION['cart'])) { 
+            echo json_encode(['success' => false, 'message' => 'Your cart is empty.']); 
+            exit(); 
         }
 
         $unavailable = checkItemAvailability($con, $_SESSION['cart']);
-        if (!empty($unavailable)) {
+        if (!empty($unavailable)) { 
             echo json_encode([
-                'success' => false,
+                'success' => false, 
                 'message' => 'Some items are no longer available: ' . implode(', ', $unavailable)
-            ]);
-            exit();
+            ]); 
+            exit(); 
         }
 
         $total_amount = cartTotalPrice($_SESSION['cart']);
         $status = 'Pending';
-        
         $order_type_raw = $_POST['order_type'] ?? 'Pick-up';
         $order_type = ($order_type_raw === 'Delivery') ? 'Delivered' : $order_type_raw;
-        
         $pickup_time = $_POST['pickup_time'] ?? '';
         $order_note = $_POST['order_note'] ?? '';
         $order_number = generateOrderNumber($con);
@@ -221,22 +292,17 @@ switch ($action) {
             
             $maxOrderId = 0;
             $res = $con->query("SELECT MAX(order_id) as max_id FROM orders");
-            if ($row = $res->fetch_assoc()) {
-                $maxOrderId = $row['max_id'] ? $row['max_id'] : 0;
-            }
+            if ($row = $res->fetch_assoc()) $maxOrderId = $row['max_id'] ? $row['max_id'] : 0;
             $newOrderId = $maxOrderId + 1;
 
             $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, pickup_time, order_note, total_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
             if (!$stmt) throw new Exception("Prepare failed: " . $con->error);
-            
             $stmt->bind_param("iissssds", $newOrderId, $user_id, $order_number, $order_type, $pickup_time, $order_note, $total_amount, $status);
             $stmt->execute();
-            
+
             $maxItemId = 0;
             $res2 = $con->query("SELECT MAX(order_item_id) as max_id FROM order_items");
-            if ($row2 = $res2->fetch_assoc()) {
-                $maxItemId = $row2['max_id'] ? $row2['max_id'] : 0;
-            }
+            if ($row2 = $res2->fetch_assoc()) $maxItemId = $row2['max_id'] ? $row2['max_id'] : 0;
             $newItemId = $maxItemId + 1;
 
             $stmt_item = $con->prepare("INSERT INTO order_items (order_item_id, order_id, item_name, quantity, price) VALUES (?, ?, ?, ?, ?)");
@@ -249,14 +315,25 @@ switch ($action) {
             }
             
             $con->commit();
-            
+
+            // ✅ SEND EMAIL RECEIPT
+            $emailSent = sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $_SESSION['cart']);
+
             $_SESSION['cart'] = [];
             saveCartToDB($con, $user_id, []);
 
+            $message = 'Order placed successfully! Order #' . $order_number;
+            if ($emailSent) {
+                $message .= ' - Receipt sent to your email!';
+            } else {
+                $message .= ' - Please screenshot this page as your receipt.';
+            }
+
             echo json_encode([
                 'success' => true, 
-                'message' => 'Order placed successfully! Order #' . $order_number, 
-                'order_id' => $newOrderId
+                'message' => $message, 
+                'order_id' => $newOrderId,
+                'order_number' => $order_number
             ]);
 
         } catch (Exception $e) {
