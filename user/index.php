@@ -354,7 +354,24 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="modal-header"><h2><i class="bi bi-basket2"></i> Create Custom Rice Meal</h2><button class="modal-close" onclick="closeModal('customOrderModal')"><i class="bi bi-x-lg"></i></button></div>
         <div class="modal-section"><h3>1. Select Meat (Max 2)</h3><div class="modal-images" id="meatSelection"><?php foreach($meat_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" data-productid="<?=$item['productID']?>" onclick="toggleCustomUlam(this, 'meat')"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div></div>
         <div class="modal-section"><h3>2. Select Gulay (Max 2)</h3><div class="modal-images" id="gulaySelection"><?php foreach($gulay_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" data-productid="<?=$item['productID']?>" onclick="toggleCustomUlam(this, 'gulay')"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div></div>
-        <div class="modal-section"><h3>3. Choose Rice Type (₱15)</h3><div class="rice-type-selector"><div class="rice-type-option selected" data-type="white" onclick="selectCustomRiceType(this)"><div class="rice-icon">🍚</div><div class="rice-name">White Rice</div></div><div class="rice-type-option" data-type="fried" onclick="selectCustomRiceType(this)"><div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div></div></div><div class="rice-price-note">Rice is ₱15 and is automatically added to your total.</div></div>
+        
+        <!-- ✅ UPDATED: Added "No Rice" Option -->
+        <div class="modal-section">
+            <h3>3. Choose Rice Type (Optional)</h3>
+            <div class="rice-type-selector">
+                <div class="rice-type-option" data-type="none" onclick="selectCustomRiceType(this)">
+                    <div class="rice-icon">🚫</div><div class="rice-name">No Rice</div>
+                </div>
+                <div class="rice-type-option selected" data-type="white" onclick="selectCustomRiceType(this)">
+                    <div class="rice-icon">🍚</div><div class="rice-name">White Rice</div>
+                </div>
+                <div class="rice-type-option" data-type="fried" onclick="selectCustomRiceType(this)">
+                    <div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div>
+                </div>
+            </div>
+            <div class="rice-price-note">Rice is ₱15. Select "No Rice" for Ulam only.</div>
+        </div>
+
         <div class="modal-section" id="customDrinkSection" style="display:none"><h3>4. Add a Drink? (Optional)</h3><div class="modal-images" id="customDrinkSelection"><?php foreach($drinks_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleCustomDrink(this)"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div><div style="margin-top:10px;text-align:center"><button type="button" style="background:#6c757d;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer" onclick="skipCustomDrink()">Skip Drink & Add to Cart</button></div></div>
         <div class="modal-footer"><div class="modal-total" id="customOrderTotal">₱0.00</div><button class="btn-add-cart" id="btnConfirmCustom" onclick="confirmCustomOrder()" disabled><i class="bi bi-cart-plus"></i> Add to Cart</button></div>
     </div>
@@ -482,13 +499,30 @@ function toggleCustomUlam(el, type){
 }
 function toggleCustomDrink(el){ document.querySelectorAll('#customDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); selectedCustomDrink = { name: el.dataset.name, price: parseFloat(el.dataset.price) }; updateCustomTotal(); }
 function skipCustomDrink(){ selectedCustomDrink = ''; updateCustomTotal(); confirmCustomOrder(); }
-function updateCustomTotal(){ let total = RICE_PRICE + [...selectedCustomMeat, ...selectedCustomGulay].reduce((s,u)=>s+u.price,0); if(selectedCustomDrink) total += selectedCustomDrink.price; document.getElementById('customOrderTotal').textContent='₱'+total.toFixed(2); }
-function selectCustomRiceType(el){ customRiceType = el.dataset.type; document.querySelectorAll('#customOrderModal .rice-type-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); }
+
+// ✅ UPDATED: Only adds rice price if "No Rice" is NOT selected
+function updateCustomTotal(){ 
+    let total = 0;
+    if (customRiceType !== 'none') { total += RICE_PRICE; }
+    total += [...selectedCustomMeat, ...selectedCustomGulay].reduce((s,u)=>s+u.price,0); 
+    if(selectedCustomDrink) total += selectedCustomDrink.price; 
+    document.getElementById('customOrderTotal').textContent='₱'+total.toFixed(2); 
+}
+
+function selectCustomRiceType(el){ customRiceType = el.dataset.type; document.querySelectorAll('#customOrderModal .rice-type-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); updateCustomTotal(); }
+
+// ✅ UPDATED: Adjusts description and total if "No Rice" is selected
 function confirmCustomOrder(){
     if((selectedCustomMeat.length + selectedCustomGulay.length)===0) return;
     let allItems = [...selectedCustomMeat, ...selectedCustomGulay];
-    let total = RICE_PRICE + allItems.reduce((s,u)=>s+u.price,0);
-    let desc = 'Custom Rice ('+allItems.map(u=>u.name).join(', ')+', '+(customRiceType==='fried'?'Fried Rice':'White Rice')+')';
+    let total = 0;
+    
+    if (customRiceType !== 'none') total += RICE_PRICE;
+    total += allItems.reduce((s,u)=>s+u.price,0);
+    
+    let riceText = customRiceType === 'none' ? 'No Rice' : (customRiceType==='fried'?'Fried Rice':'White Rice');
+    let desc = 'Custom Meal ('+allItems.map(u=>u.name).join(', ')+', '+riceText+')';
+    
     if(selectedCustomDrink){ desc += ' + ' + selectedCustomDrink.name; total += selectedCustomDrink.price; }
     addToCart(desc, total, 1, 0);
     if(customRiceType==='fried') deductFriedRice();
