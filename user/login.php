@@ -143,31 +143,34 @@ body {
     margin-bottom: 1rem;
     border: 1px solid #ffcccc;
 }
+
+/* ✅ UPDATED LINKS CONTAINER FOR SIDE-BY-SIDE LAYOUT */
 .links-container {
     margin-top: 1.5rem;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row; /* Makes them sit next to each other */
+    justify-content: space-between; /* Pushes Forgot to left, Sign Up to right */
+    align-items: center;
+    width: 100%;
+    font-size: 0.9rem;
 }
 .forgot-link {
     color: #8B0000;
     text-decoration: none;
     font-weight: 600;
-    font-size: 0.95rem;
 }
 .forgot-link:hover {
     text-decoration: underline;
 }
 .signup-text {
     color: #555;
-    font-size: 0.95rem;
     font-weight: 500;
 }
 .signup-link {
     color: #8B0000;
     text-decoration: none;
     font-weight: 700;
-    margin-left: 5px;
+    margin-left: 4px;
 }
 .signup-link:hover {
     text-decoration: underline;
@@ -198,11 +201,10 @@ body {
         <button type="submit" class="btn-signin"><i class="bi bi-box-arrow-in-right"></i> Sign In</button>
     </form>
 
+    <!-- ✅ UPDATED HTML FOR SIDE-BY-SIDE LINKS -->
     <div class="links-container">
         <a href="forgot.php" class="forgot-link">Forgot Password?</a>
-        <div class="signup-text">
-            Don't have an account? <a href="register.php" class="signup-link">Sign Up</a>
-        </div>
+        <span class="signup-text">No account? <a href="register.php" class="signup-link">Sign Up</a></span>
     </div>
 </div>
 
