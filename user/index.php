@@ -22,7 +22,7 @@ function imgTag($folder, $image){
     return "https://via.placeholder.com/200x160/8B0000/ffffff?text=" . urlencode(str_replace(' ', '+', $image));
 }
 
-// --- RICE MEALS (Added Ulam Only) ---
+// --- RICE MEALS ---
 $rice_meals_list = [
     ['name'=>'Meat to meat with rice & drinks','price'=>95,'has_drink'=>true,'has_rice'=>true,'type'=>'meat'],
     ['name'=>'Meat to meat with rice','price'=>85,'has_drink'=>false,'has_rice'=>true,'type'=>'meat'],
@@ -60,22 +60,16 @@ if ($res) {
     }
 }
 
-// Filter out breakfast items from custom ulam
 $custom_ulam_items = array_filter($ulam_items, function($item) {
     return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice']);
 });
 
-// Separate Meat and Gulay for the modal (Adjust names based on your actual DB)
-$meat_items = array_filter($custom_ulam_items, function($i) { return preg_match('/chicken|pork|beef|meat|adobo|bbq|tocino/i', $i['name']); });
-$gulay_items = array_filter($custom_ulam_items, function($i) { return preg_match('/gulay|talong|sitaw|ampalaya|sayote/i', $i['name']); });
-// If filter fails, fallback to all
-if(empty($meat_items)) $meat_items = $custom_ulam_items;
-if(empty($gulay_items)) $gulay_items = [];
+// Separate Meat and Gulay for the modal
+$meat_items = array_filter($custom_ulam_items, function($i) { return preg_match('/chicken|pork|beef|meat|adobo|bbq|tocino|longganisa|spam|hotdog/i', $i['name']); });
+$gulay_items = array_filter($custom_ulam_items, function($i) { return preg_match('/gulay|talong|sitaw|ampalaya|sayote|vegetable/i', $i['name']); });
+if(empty($meat_items)) $meat_items = $custom_ulam_items; // Fallback
 
 $active_cat = isset($_GET['cat']) ? $_GET['cat'] : 'all';
-
-// Items that use "Amount" modal (piece-based)
-$amount_items_names = ['Siomai', 'Candies', 'Assorted Candies'];
 
 function renderGrid($items, $clickAction = 'qty') {
     if (empty($items)) return '<p style="color:var(--text-muted);padding:1rem;">No items available.</p>';
@@ -84,7 +78,6 @@ function renderGrid($items, $clickAction = 'qty') {
         $slug = slugify($item['name']);
         $img = imgTag($item['folder'], $item['image']);
         $ph = 'https://via.placeholder.com/200?text=' . urlencode($item['name']);
-        // Use 'amount' for siomai/candies, 'qty' for others
         $action = (in_array($item['name'], ['Siomai', 'Assorted Candies (4pcs)'])) ? 'amount' : $clickAction;
         $onclick = ($action === 'amount') ? "openCustomAmountModal(this.closest('.img-card'))" : "openQtyModal(this.closest('.img-card'))";
         
@@ -122,7 +115,6 @@ function renderGrid($items, $clickAction = 'qty') {
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-height:100vh}
 .sidebar{width:var(--sidebar-width);background:#fff;border-right:1px solid var(--border-color);display:flex;flex-direction:column;height:100vh;position:fixed;left:0;top:0;z-index:100}
-/* ✅ LOGO REMOVED FROM SIDEBAR AS REQUESTED */
 .nav-section{padding:1rem 0;flex:1;overflow-y:auto}
 .nav-link{display:flex;align-items:center;gap:12px;padding:12px 1.5rem;color:var(--text-dark);text-decoration:none;font-weight:500;font-size:.95rem;transition:all .2s;border-left:3px solid transparent}
 .nav-link:hover{background:#f8f9fa}
@@ -205,7 +197,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 <body>
 
 <aside class="sidebar" id="sidebar">
-    <!-- ✅ LOGO REMOVED -->
     <div class="nav-section">
         <a href="index.php" class="nav-link <?=$active_cat=='all'?'active':''?>"><i class="bi bi-calendar-day"></i> Today's Menu</a>
         <a href="my_orders.php" class="nav-link"><i class="bi bi-receipt"></i> My Orders</a>
@@ -346,9 +337,59 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </main>
 
-<!-- ============ MODALS (Rice, Custom, Breakfast, Qty, Amount) ============ -->
-<!-- (Keep the exact same modal HTML structure from your previous index.php, just ensure the JS below matches) -->
-<!-- For brevity, I am including the JS logic which is the most important part to update -->
+<!-- ============ RICE MEAL MODAL ============ -->
+<div class="modal-overlay" id="riceMealModal">
+    <div class="modal-content">
+        <div class="modal-header"><h2 id="riceMealTitle">Select Your Rice Meal</h2><button class="modal-close" onclick="closeModal('riceMealModal')"><i class="bi bi-x-lg"></i></button></div>
+        <div class="modal-section"><h3>1. Choose 1-3 Ulam</h3><div class="modal-images" id="ulamSelection"><?php foreach($custom_ulam_items as $item): ?><div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleUlam(this)"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div></div><?php endforeach; ?></div></div>
+        <div class="modal-section" id="riceTypeSection"><h3>2. Choose Rice Type</h3><div class="rice-type-selector"><div class="rice-type-option selected" data-type="white" onclick="selectRiceType(this,'riceMealModal')"><div class="rice-icon">🍚</div><div class="rice-name">White Rice</div></div><div class="rice-type-option" data-type="fried" onclick="selectRiceType(this,'riceMealModal')"><div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div></div></div></div>
+        <div class="modal-section" id="drinkSelectionSection" style="display:none"><h3>3. Choose 1 Drink (Included)</h3><div class="modal-images" id="drinkSelection"><?php foreach($drinks_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleDrink(this)"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div></div><?php endforeach; ?></div></div>
+        <div class="modal-footer"><div class="modal-total" id="riceMealTotal">₱0.00</div><button class="btn-add-cart" id="btnConfirmRiceMeal" onclick="confirmRiceMeal()" disabled><i class="bi bi-cart-plus"></i> Add to Cart</button></div>
+    </div>
+</div>
+
+<!-- ============ CUSTOM ORDER MODAL (SEPARATED MEAT & GULAY) ============ -->
+<div class="modal-overlay" id="customOrderModal">
+    <div class="modal-content">
+        <div class="modal-header"><h2><i class="bi bi-basket2"></i> Create Custom Rice Meal</h2><button class="modal-close" onclick="closeModal('customOrderModal')"><i class="bi bi-x-lg"></i></button></div>
+        <div class="modal-section"><h3>1. Select Meat (Max 2)</h3><div class="modal-images" id="meatSelection"><?php foreach($meat_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" data-productid="<?=$item['productID']?>" onclick="toggleCustomUlam(this, 'meat')"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div></div>
+        <div class="modal-section"><h3>2. Select Gulay (Max 2)</h3><div class="modal-images" id="gulaySelection"><?php foreach($gulay_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" data-productid="<?=$item['productID']?>" onclick="toggleCustomUlam(this, 'gulay')"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div></div>
+        <div class="modal-section"><h3>3. Choose Rice Type (₱15)</h3><div class="rice-type-selector"><div class="rice-type-option selected" data-type="white" onclick="selectCustomRiceType(this)"><div class="rice-icon">🍚</div><div class="rice-name">White Rice</div></div><div class="rice-type-option" data-type="fried" onclick="selectCustomRiceType(this)"><div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div></div></div><div class="rice-price-note">Rice is ₱15 and is automatically added to your total.</div></div>
+        <div class="modal-section" id="customDrinkSection" style="display:none"><h3>4. Add a Drink? (Optional)</h3><div class="modal-images" id="customDrinkSelection"><?php foreach($drinks_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleCustomDrink(this)"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div><div style="margin-top:10px;text-align:center"><button type="button" style="background:#6c757d;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer" onclick="skipCustomDrink()">Skip Drink & Add to Cart</button></div></div>
+        <div class="modal-footer"><div class="modal-total" id="customOrderTotal">₱0.00</div><button class="btn-add-cart" id="btnConfirmCustom" onclick="confirmCustomOrder()" disabled><i class="bi bi-cart-plus"></i> Add to Cart</button></div>
+    </div>
+</div>
+
+<!-- ============ BREAKFAST MODAL ============ -->
+<div class="modal-overlay" id="breakfastModal">
+    <div class="modal-content">
+        <div class="modal-header"><h2><i class="bi bi-cup-hot"></i> Customize Breakfast Silog</h2><button class="modal-close" onclick="closeModal('breakfastModal')"><i class="bi bi-x-lg"></i></button></div>
+        <div class="modal-section"><h3>1. Choose Your Breakfast Sides</h3><div class="modal-images" id="breakfastSidesList"><?php foreach($breakfast_sides as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastSide(this)"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div></div>
+        <div class="modal-section"><h3>2. Choose Rice Type (₱15)</h3><div class="rice-type-selector"><div class="rice-type-option selected" data-type="white" onclick="selectBreakfastRice(this)"><div class="rice-icon">🍚</div><div class="rice-name">White Rice</div></div><div class="rice-type-option" data-type="fried" onclick="selectBreakfastRice(this)"><div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div></div></div><div class="rice-price-note">Rice is ₱15 and is automatically added to your total.</div></div>
+        <div class="modal-section" id="breakfastDrinkSection" style="display:none"><h3>3. Add a Drink? (Optional)</h3><div class="modal-images" id="breakfastDrinkSelection"><?php foreach($drinks_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" onclick="toggleBreakfastDrink(this)"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div><div style="margin-top:10px;text-align:center"><button type="button" style="background:#6c757d;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer" onclick="skipBreakfastDrink()">Skip Drink & Add to Cart</button></div></div>
+        <div class="modal-footer"><div class="modal-total" id="breakfastTotal">₱15.00</div><button class="btn-add-cart" id="btnConfirmBreakfast" onclick="confirmBreakfast()" disabled><i class="bi bi-cart-plus"></i> Add to Cart</button></div>
+    </div>
+</div>
+
+<!-- ============ QTY MODAL ============ -->
+<div class="modal-overlay" id="qtyModal">
+    <div class="modal-content" style="max-width:400px">
+        <div class="modal-header"><h2 id="qtyModalTitle">Item</h2><button class="modal-close" onclick="closeModal('qtyModal')"><i class="bi bi-x-lg"></i></button></div>
+        <div style="text-align:center;margin-bottom:1.5rem"><img id="qtyModalImg" src="" style="width:100%;max-width:250px;height:200px;object-fit:cover;border-radius:12px;margin-bottom:1rem"><div style="font-size:1.1rem;font-weight:700;color:var(--brand-red)" id="qtyModalPrice">₱0</div></div>
+        <div class="modal-section"><h3 style="text-align:center">Quantity</h3><div class="qty-controls" style="justify-content:center;gap:15px"><button type="button" class="qty-btn" style="width:40px;height:40px;font-size:1.2rem" onclick="changeQtyModal(-1)">−</button><span class="qty-display" id="qtyModalQty" style="font-size:1.5rem;min-width:40px">1</span><button type="button" class="qty-btn" style="width:40px;height:40px;font-size:1.2rem" onclick="changeQtyModal(1)">+</button></div></div>
+        <div class="modal-footer" style="justify-content:center"><div class="modal-total" id="qtyModalTotal">₱0.00</div><button class="btn-add-cart" onclick="confirmQtyModal()"><i class="bi bi-cart-plus"></i> Add to Cart</button></div>
+    </div>
+</div>
+
+<!-- ============ CUSTOM AMOUNT MODAL ============ -->
+<div class="modal-overlay" id="customAmountModal">
+    <div class="modal-content" style="max-width:400px">
+        <div class="modal-header"><h2 id="customAmountTitle">Item</h2><button class="modal-close" onclick="closeModal('customAmountModal')"><i class="bi bi-x-lg"></i></button></div>
+        <div style="text-align:center;margin-bottom:1.5rem"><img id="customAmountImg" src="" style="width:100%;max-width:250px;height:200px;object-fit:cover;border-radius:12px;margin-bottom:1rem"><div style="font-size:.9rem;color:var(--text-muted)" id="customAmountUnitPrice">₱0/pc</div></div>
+        <div class="modal-section"><h3>How much do you want to spend?</h3><input type="number" class="custom-amount-input" id="customAmountInput" min="5" value="5" oninput="updateCustomAmountPreview()"><div class="amount-preview" id="customAmountPreview"></div></div>
+        <div class="modal-footer" style="justify-content:center"><button class="btn-add-cart" onclick="confirmCustomAmount()"><i class="bi bi-cart-plus"></i> Add to Cart</button></div>
+    </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -389,6 +430,9 @@ function openRiceMealModal(index){
     document.querySelectorAll('#ulamSelection .ulam-option').forEach(el=>el.classList.remove('selected'));
     document.getElementById('riceTypeSection').style.display = currentMeal.has_rice ? 'block' : 'none';
     document.getElementById('drinkSelectionSection').style.display = currentMeal.has_drink ? 'block' : 'none';
+    document.querySelectorAll('#drinkSelection .modal-img-option').forEach(el=>el.classList.remove('selected'));
+    document.querySelectorAll('#riceMealModal .rice-type-option').forEach(el=>el.classList.remove('selected'));
+    document.querySelector('#riceMealModal .rice-type-option[data-type="white"]').classList.add('selected');
     document.getElementById('riceMealModal').classList.add('active');
 }
 function toggleUlam(el){
@@ -420,7 +464,7 @@ function openCustomOrderModal(){
     document.getElementById('customOrderModal').classList.add('active');
 }
 function toggleCustomUlam(el, type){
-    const name = el.dataset.name, price = parseFloat(el.dataset.price), productID = parseInt(el.dataset.productid) || 0;
+    const name = el.dataset.name, price = parseFloat(el.dataset.price);
     let list = type === 'meat' ? selectedCustomMeat : selectedCustomGulay;
     
     if(el.classList.contains('selected')){ 
@@ -428,10 +472,8 @@ function toggleCustomUlam(el, type){
         if(type==='meat') selectedCustomMeat = selectedCustomMeat.filter(u=>u.name!==name);
         else selectedCustomGulay = selectedCustomGulay.filter(u=>u.name!==name);
     } else {
-        if(list.length < 2){ // Max 2 per category so total is max 3-4
-            el.classList.add('selected'); 
-            list.push({name, price, productID}); 
-        } else showToast('Max 2 items per category!');
+        if(list.length < 2){ el.classList.add('selected'); list.push({name, price}); } 
+        else showToast('Max 2 items per category!');
     }
     if(selectedCustomMeat.length > 0 || selectedCustomGulay.length > 0) document.getElementById('customDrinkSection').style.display='block';
     else { document.getElementById('customDrinkSection').style.display='none'; selectedCustomDrink = ''; }
@@ -453,15 +495,39 @@ function confirmCustomOrder(){
     closeModal('customOrderModal'); showToast('✅ Added!');
 }
 
-// --- BREAKFAST, QTY, AMOUNT MODALS (Keep existing logic) ---
-function openBreakfastModal(){ /* ... keep existing ... */ }
-function toggleBreakfastSide(el){ /* ... keep existing ... */ }
-function toggleBreakfastDrink(el){ /* ... keep existing ... */ }
-function skipBreakfastDrink(){ /* ... keep existing ... */ }
-function updateBreakfastTotal(){ /* ... keep existing ... */ }
-function selectBreakfastRice(el){ /* ... keep existing ... */ }
-function confirmBreakfast(){ /* ... keep existing ... */ }
+// --- BREAKFAST MODAL ---
+function openBreakfastModal(){
+    selectedSides=[]; breakfastRice='white'; selectedBreakfastDrink='';
+    document.getElementById('breakfastTotal').textContent='₱'+RICE_PRICE.toFixed(2);
+    document.getElementById('btnConfirmBreakfast').disabled=true;
+    document.querySelectorAll('#breakfastSidesList .modal-img-option').forEach(e=>e.classList.remove('selected'));
+    document.querySelectorAll('#breakfastModal .rice-type-option').forEach(e=>e.classList.remove('selected'));
+    document.querySelector('#breakfastModal .rice-type-option[data-type="white"]').classList.add('selected');
+    document.getElementById('breakfastDrinkSection').style.display='none';
+    document.getElementById('breakfastModal').classList.add('active');
+}
+function toggleBreakfastSide(el){
+    const name = el.dataset.name, price = parseFloat(el.dataset.price);
+    if(el.classList.contains('selected')){ el.classList.remove('selected'); selectedSides=selectedSides.filter(s=>s.name!==name); }
+    else { el.classList.add('selected'); selectedSides.push({name, price}); document.getElementById('breakfastDrinkSection').style.display='block'; }
+    updateBreakfastTotal();
+    document.getElementById('btnConfirmBreakfast').disabled = selectedSides.length===0;
+}
+function toggleBreakfastDrink(el){ document.querySelectorAll('#breakfastDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); selectedBreakfastDrink = { name: el.dataset.name, price: parseFloat(el.dataset.price) }; updateBreakfastTotal(); }
+function skipBreakfastDrink(){ selectedBreakfastDrink = ''; updateBreakfastTotal(); confirmBreakfast(); }
+function updateBreakfastTotal(){ let total = RICE_PRICE + selectedSides.reduce((s,x)=>s+x.price,0); if(selectedBreakfastDrink) total += selectedBreakfastDrink.price; document.getElementById('breakfastTotal').textContent='₱'+total.toFixed(2); }
+function selectBreakfastRice(el){ breakfastRice = el.dataset.type; document.querySelectorAll('#breakfastModal .rice-type-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); }
+function confirmBreakfast(){
+    if(selectedSides.length===0) return;
+    let total = RICE_PRICE + selectedSides.reduce((s,x)=>s+x.price,0);
+    let desc = 'Breakfast Silog ('+selectedSides.map(s=>s.name).join(', ')+', '+(breakfastRice==='fried'?'Fried Rice':'White Rice')+')';
+    if(selectedBreakfastDrink){ desc += ' + ' + selectedBreakfastDrink.name; total += selectedBreakfastDrink.price; }
+    addToCart(desc, total, 1, 0);
+    if(breakfastRice==='fried') deductFriedRice();
+    closeModal('breakfastModal'); showToast('✅ Breakfast added!');
+}
 
+// --- QTY & AMOUNT MODALS ---
 function openQtyModal(card){
     qtyModalCard = card; qtyModalName = card.dataset.name; qtyModalPrice = parseFloat(card.dataset.price); 
     qtyModalProductID = parseInt(card.dataset.productid) || 0; qtyModalQty = 1;
