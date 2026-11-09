@@ -78,17 +78,25 @@ function renderGrid($items, $clickAction = 'qty') {
         $slug = slugify($item['name']);
         $img = imgTag($item['folder'], $item['image']);
         $ph = 'https://via.placeholder.com/200?text=' . urlencode($item['name']);
-        $action = (stripos($item['name'], 'Siomai') !== false || stripos($item['name'], 'Candies') !== false) ? 'amount' : $clickAction;
+        
+        // ✅ Check if it's candies to handle special pricing
+        $isCandies = (stripos($item['name'], 'Candies') !== false);
+        
+        // Siomai uses amount modal, Candies uses qty buttons
+        $action = (stripos($item['name'], 'Siomai') !== false) ? 'amount' : 'qty';
         $onclick = ($action === 'amount') ? "openCustomAmountModal(this.closest('.img-card'))" : "openQtyModal(this.closest('.img-card'))";
         
+        // ✅ Display "₱5/4pcs" for candies
+        $priceDisplay = $isCandies ? '₱5/4pcs' : '₱'.$item['price'];
+        
         $html .= '
-        <div class="img-card" data-slug="'.$slug.'" data-productid="'.$pid.'" data-name="'.htmlspecialchars($item['name']).'" data-price="'.$item['price'].'" data-img="'.$img.'">
+        <div class="img-card" data-slug="'.$slug.'" data-productid="'.$pid.'" data-name="'.htmlspecialchars($item['name']).'" data-price="'.$item['price'].'" data-img="'.$img.'" data-is-candies="'.($isCandies?'1':'0').'">
             <div class="img-card-img-wrapper" onclick="'.$onclick.'">
                 <img src="'.$img.'" alt="'.htmlspecialchars($item['name']).'" onerror="this.src=\''.$ph.'\'">
             </div>
             <div class="img-card-info">
                 <div class="img-card-name" onclick="'.$onclick.'">'.htmlspecialchars($item['name']).'</div>
-                <div class="img-card-price">₱'.$item['price'].'</div>
+                <div class="img-card-price">'.$priceDisplay.'</div>
                 <div class="qty-controls">
                     <button type="button" class="qty-btn" onclick="changeCardQty(this.closest(\'.img-card\'), -1)">−</button>
                     <span class="qty-display">1</span>
@@ -303,7 +311,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="category-section">
             <div class="category-title"><i class="bi bi-heart"></i> Candies</div>
             <p style="color:var(--brand-red);font-weight:600;margin-bottom:1rem;">🍬 All Candies: 4 pieces for ₱5.00</p>
-            <?=renderGrid($candies_items, 'amount')?>
+            <?=renderGrid($candies_items, 'qty')?>
         </div>
         <?php endif; ?>
 
@@ -356,7 +364,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
                     <div class="rice-icon">🍚</div><div class="rice-name">White Rice</div>
                 </div>
                 <div class="rice-type-option" data-type="fried" onclick="selectCustomRiceType(this)">
-                    <div class="rice-icon"></div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div>
+                    <div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div>
                 </div>
             </div>
             <div class="rice-price-note">Rice is ₱15. Select "No Rice" for Ulam only.</div>
@@ -422,10 +430,32 @@ function refreshBadge(){ fetch('cart_actions.php?action=get').then(r=>r.json()).
 function deductFriedRice(){ fetch('cart_actions.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=deduct_fried_rice'}); }
 
 function changeCardQty(card, delta){ const el = card.querySelector('.qty-display'); let q = parseInt(el.textContent) || 1; el.textContent = Math.max(1, Math.min(99, q + delta)); }
+
+// ✅ UPDATED: Handle candies pricing (1 qty = 4 pcs = ₱5)
 function addFromCard(card){
-    const name = card.dataset.name, price = parseFloat(card.dataset.price), productID = parseInt(card.dataset.productid) || 0;
-    const qty = parseInt(card.querySelector('.qty-display').textContent) || 1;
-    addToCart(name, price, qty, productID).then(()=>{ showToast('✅ Added!'); card.querySelector('.qty-display').textContent = 1; });
+    const name = card.dataset.name;
+    const price = parseFloat(card.dataset.price);
+    const productID = parseInt(card.dataset.productid) || 0;
+    const isCandies = card.dataset.isCandies === '1';
+    let qty = parseInt(card.querySelector('.qty-display').textContent) || 1;
+    
+    if (isCandies) {
+        // For candies: 1 quantity = 4 pieces = ₱5
+        const piecesPerUnit = 4;
+        const pricePerUnit = 5; // ₱5 per 4 pieces
+        const totalPieces = qty * piecesPerUnit;
+        const totalPrice = qty * pricePerUnit;
+        
+        addToCart(name + ' (' + totalPieces + ' pcs)', totalPrice, 1, productID).then(()=>{ 
+            showToast('✅ Added ' + totalPieces + ' pieces!'); 
+            card.querySelector('.qty-display').textContent = 1; 
+        });
+    } else {
+        addToCart(name, price, qty, productID).then(()=>{ 
+            showToast('✅ Added!'); 
+            card.querySelector('.qty-display').textContent = 1; 
+        });
+    }
 }
 
 // --- RICE MEAL MODAL ---
