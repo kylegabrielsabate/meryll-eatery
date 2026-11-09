@@ -204,7 +204,7 @@ body {
     <!-- ✅ UPDATED HTML FOR SIDE-BY-SIDE LINKS -->
     <div class="links-container">
         <a href="forgot.php" class="forgot-link">Forgot Password?</a>
-        <span class="signup-text">No account? <a href="register.php" class="signup-link">Sign Up</a></span>
+        <span class="signup-text">No account? <a href="signup.php" class="signup-link">Sign Up</a></span>
     </div>
 </div>
 
