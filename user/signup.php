@@ -65,13 +65,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; overflow: hidden; }
         body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px;
-        }
+    font-family: 'Inter', sans-serif;
+    /* ✅ SAME BACKGROUND IMAGE AS LOGIN */
+    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('../images/background_image.jpg') no-repeat center center fixed; 
+    background-size: cover;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
         .signup-container {
             background: white;
             border-radius: 14px;

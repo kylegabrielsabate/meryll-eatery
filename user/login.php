@@ -127,6 +127,11 @@ body{
     <div class="footer-link">
         <a href="forgot.php">Forgot Password?</a>
     </div>
+    <!-- ✅ SIGN UP LINK ADDED -->
+<div style="text-align: center; margin-top: 15px; font-size: 0.9rem; color: #fff;">
+    Don't have an account? 
+    <a href="register.php" style="color: #ffc107; text-decoration: none; font-weight: 600;">Sign Up</a>
+</div>
 </div>
 </body>
 </html>
