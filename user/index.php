@@ -70,7 +70,8 @@ if(empty($meat_items)) $meat_items = $custom_ulam_items;
 
 $active_cat = isset($_GET['cat']) ? $_GET['cat'] : 'all';
 
-function renderGrid($items, $clickAction = 'qty') {
+// ✅ FIX: Added $isCandiesCategory parameter
+function renderGrid($items, $clickAction = 'qty', $isCandiesCategory = false) {
     if (empty($items)) return '<p style="color:var(--text-muted);padding:1rem;">No items available.</p>';
     $html = '<div class="image-grid">';
     foreach ($items as $item) {
@@ -79,8 +80,8 @@ function renderGrid($items, $clickAction = 'qty') {
         $img = imgTag($item['folder'], $item['image']);
         $ph = 'https://via.placeholder.com/200?text=' . urlencode($item['name']);
         
-        // ✅ Check if it's candies to handle special pricing
-        $isCandies = (stripos($item['name'], 'Candies') !== false);
+        // ✅ Check if it's candies category OR name contains Candies
+        $isCandies = $isCandiesCategory || (stripos($item['name'], 'Candies') !== false);
         
         // Siomai uses amount modal, Candies uses qty buttons
         $action = (stripos($item['name'], 'Siomai') !== false) ? 'amount' : 'qty';
@@ -306,12 +307,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <?php if($active_cat=='all'||$active_cat=='coffee'): ?><div class="category-section"><div class="category-title"><i class="bi bi-cup-fill"></i> Coffee</div><?=renderGrid($coffee_items)?></div><?php endif; ?>
         <?php if($active_cat=='all'||$active_cat=='drinks'): ?><div class="category-section"><div class="category-title"><i class="bi bi-cup-straw"></i> Drinks</div><?=renderGrid($drinks_items)?></div><?php endif; ?>
 
-        <!-- ✅ FIX: Use database items for Candies -->
+        <!-- ✅ FIX: Use database items for Candies AND pass 'true' for isCandiesCategory -->
         <?php if($active_cat=='all'||$active_cat=='candies'): ?>
         <div class="category-section">
             <div class="category-title"><i class="bi bi-heart"></i> Candies</div>
             <p style="color:var(--brand-red);font-weight:600;margin-bottom:1rem;">🍬 All Candies: 4 pieces for ₱5.00</p>
-            <?=renderGrid($candies_items, 'qty')?>
+            <?=renderGrid($candies_items, 'qty', true)?>
         </div>
         <?php endif; ?>
 
