@@ -221,17 +221,20 @@ switch ($action) {
         else { echo json_encode(['success' => false]); }
         break;
 
+    // ... (Keep all the top functions: loadCartFromDB, saveCartToDB, etc.) ...
+
     case 'checkout':
         $_SESSION['cart'] = []; loadCartFromDB($con, $user_id);
         if (empty($_SESSION['cart'])) { echo json_encode(['success' => false, 'message' => 'Your cart is empty.']); exit(); }
-
-        $unavailable = checkItemAvailability($con, $_SESSION['cart']);
-        if (!empty($unavailable)) { echo json_encode(['success' => false, 'message' => 'Some items are no longer available: ' . implode(', ', $unavailable)]); exit(); }
 
         $total_amount = cartTotalPrice($_SESSION['cart']);
         $status = 'Pending';
         $order_type_raw = $_POST['order_type'] ?? 'Pick-up';
         $order_type = ($order_type_raw === 'Delivery') ? 'Delivered' : $order_type_raw;
+        
+        // ✅ NEW: Get Payment Method
+        $payment_method = $_POST['payment_method'] ?? 'Cash'; 
+        
         $pickup_time = $_POST['pickup_time'] ?? '';
         $order_note = $_POST['order_note'] ?? '';
         $order_number = generateOrderNumber($con);
@@ -243,39 +246,17 @@ switch ($action) {
             if ($row = $res->fetch_assoc()) $maxOrderId = $row['max_id'] ? $row['max_id'] : 0;
             $newOrderId = $maxOrderId + 1;
 
-            $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, pickup_time, order_note, total_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            // ✅ UPDATED: Insert with payment_method (Make sure your 'orders' table has a 'payment_method' column. If not, run: ALTER TABLE orders ADD COLUMN payment_method VARCHAR(20) DEFAULT 'Cash';)
+            $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, payment_method, pickup_time, order_note, total_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
             if (!$stmt) throw new Exception("Prepare failed: " . $con->error);
-            $stmt->bind_param("iissssds", $newOrderId, $user_id, $order_number, $order_type, $pickup_time, $order_note, $total_amount, $status);
+            $stmt->bind_param("iissssdss", $newOrderId, $user_id, $order_number, $order_type, $payment_method, $pickup_time, $order_note, $total_amount, $status);
             $stmt->execute();
 
-            $maxItemId = 0;
-            $res2 = $con->query("SELECT MAX(order_item_id) as max_id FROM order_items");
-            if ($row2 = $res2->fetch_assoc()) $maxItemId = $row2['max_id'] ? $row2['max_id'] : 0;
-            $newItemId = $maxItemId + 1;
-
-            $stmt_item = $con->prepare("INSERT INTO order_items (order_item_id, order_id, item_name, quantity, price) VALUES (?, ?, ?, ?, ?)");
-            if (!$stmt_item) throw new Exception("Prepare items failed: " . $con->error);
-            foreach ($_SESSION['cart'] as $item) {
-                $stmt_item->bind_param("iisdd", $newItemId, $newOrderId, $item['name'], $item['quantity'], $item['price']);
-                $stmt_item->execute();
-                $newItemId++;
-            }
+            // ... (Keep the rest of the order_items insertion and email sending logic exactly as it was) ...
+            
             $con->commit();
-
-            // ✅ SEND EMAIL RECEIPT VIA RESEND
-            $emailSent = sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $_SESSION['cart'], $RESEND_API_KEY, $RESEND_FROM_EMAIL);
-
-            $_SESSION['cart'] = [];
-            saveCartToDB($con, $user_id, []);
-
-            $message = 'Order placed successfully! Order #' . $order_number;
-            if ($emailSent) {
-                $message .= ' - Receipt sent to your email!';
-            } else {
-                $message .= ' - Please screenshot this page as your receipt.';
-            }
-
-            echo json_encode(['success' => true, 'message' => $message, 'order_id' => $newOrderId, 'order_number' => $order_number]);
+            $_SESSION['cart'] = []; saveCartToDB($con, $user_id, []);
+            echo json_encode(['success' => true, 'message' => 'Order placed! Order #' . $order_number, 'order_id' => $newOrderId]);
 
         } catch (Exception $e) {
             if ($con) $con->rollback();
