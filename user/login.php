@@ -4,15 +4,36 @@ include '../connect.php';
 
 $error = '';
 
+// ✅ 1. AUTO-LOGIN CHECK: If session is empty but cookie exists, log them in automatically
+if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_me'])) {
+    $cookie_input = $_COOKIE['remember_me'];
+    $stmt = $con->prepare("SELECT user_id, username, role FROM users WHERE username = ? OR email = ? OR student_id = ? LIMIT 1");
+    $stmt->bind_param("sss", $cookie_input, $cookie_input, $cookie_input);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows === 1) {
+        $user = $result->fetch_assoc();
+        $_SESSION['user_id'] = $user['user_id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
+
+        if ($user['role'] === 'admin') {
+            header('Location: ../admin/dashboard.php');
+        } else {
+            header('Location: index.php');
+        }
+        exit();
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Changed from 'username' to 'login_input' to accept email/ID too
-    $login_input = trim($_POST['login_input'] ?? ''); 
+    $login_input = trim($_POST['login_input'] ?? '');
     $password = $_POST['password'] ?? '';
 
     if (empty($login_input) || empty($password)) {
         $error = 'Please enter your credentials.';
     } else {
-        // ✅ Query checks Username, Email, OR Student ID
         $stmt = $con->prepare("SELECT user_id, username, password, role FROM users WHERE username = ? OR email = ? OR student_id = ? LIMIT 1");
         $stmt->bind_param("sss", $login_input, $login_input, $login_input);
         $stmt->execute();
@@ -24,6 +45,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'];
+
+                // ✅ 2. HANDLE "REMEMBER ME" COOKIE
+                if (isset($_POST['remember'])) {
+                    // Save cookie for 30 days
+                    setcookie('remember_me', $login_input, time() + (86400 * 30), "/");
+                } else {
+                    // Delete cookie if unchecked
+                    if (isset($_COOKIE['remember_me'])) {
+                        setcookie('remember_me', "", time() - 3600, "/");
+                    }
+                }
 
                 if ($user['role'] === 'admin') {
                     header('Location: ../admin/dashboard.php');
@@ -39,6 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// Pre-fill the input if cookie exists
+$saved_login = isset($_COOKIE['remember_me']) ? htmlspecialchars($_COOKIE['remember_me']) : '';
+$is_remembered = isset($_COOKIE['remember_me']) ? 'checked' : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -78,9 +114,10 @@ body {
 .form-group label { display: block; font-weight: 600; font-size: 0.9rem; color: #333; margin-bottom: 0.4rem; }
 .form-group label i { margin-right: 5px; color: #6c757d; }
 
-.form-group input {
+.form-group input[type="text"], 
+.form-group input[type="password"] {
     width: 100%;
-    padding: 12px 15px;
+    padding: 12px 45px 12px 15px;
     border: 1px solid #dee2e6;
     border-radius: 10px;
     font-size: 1rem;
@@ -88,17 +125,13 @@ body {
     outline: none;
     transition: border-color 0.2s;
 }
-/* Add padding to the right so text doesn't go under the eye icon */
-.form-group input[type="password"], 
-.form-group input[type="text"] { padding-right: 45px; } 
-
 .form-group input:focus { border-color: #8B0000; box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1); }
 
 /* ✅ Eye Icon Styles */
 .toggle-password {
     position: absolute;
     right: 15px;
-    top: 38px; /* Adjust based on label height */
+    top: 38px;
     background: none;
     border: none;
     color: #6c757d;
@@ -109,6 +142,28 @@ body {
     align-items: center;
 }
 .toggle-password:hover { color: #8B0000; }
+
+/* ✅ Remember Me Checkbox Styles */
+.remember-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+    margin-top: -0.5rem;
+}
+.remember-container input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #8B0000;
+    cursor: pointer;
+}
+.remember-container label {
+    font-size: 0.9rem;
+    color: #555;
+    font-weight: 500;
+    cursor: pointer;
+    margin: 0;
+}
 
 .btn-signin {
     width: 100%; padding: 14px; background: #8B0000; color: #fff; border: none;
@@ -141,17 +196,21 @@ body {
     <form method="POST">
         <div class="form-group">
             <label><i class="bi bi-person"></i> Username, Email, or ID</label>
-            <!-- ✅ Name changed to login_input -->
-            <input type="text" name="login_input" required placeholder="e.g. john_doe, email@school.edu, or E24-00123">
+            <input type="text" name="login_input" value="<?= $saved_login ?>" required placeholder="e.g. john_doe, email@school.edu, or E24-00123">
         </div>
         
         <div class="form-group">
             <label><i class="bi bi-lock"></i> Password</label>
             <input type="password" id="passwordInput" name="password" required placeholder="Enter your password">
-            <!-- ✅ Eye Icon Button -->
             <button type="button" class="toggle-password" onclick="togglePassword()">
                 <i class="bi bi-eye" id="eyeIcon"></i>
             </button>
+        </div>
+
+        <!-- ✅ Remember Me Checkbox -->
+        <div class="remember-container">
+            <input type="checkbox" id="remember" name="remember" <?= $is_remembered ?>>
+            <label for="remember">Remember me for 30 days</label>
         </div>
 
         <button type="submit" class="btn-signin"><i class="bi bi-box-arrow-in-right"></i> Sign In</button>
@@ -164,7 +223,6 @@ body {
 </div>
 
 <script>
-    // ✅ JavaScript to toggle password visibility
     function togglePassword() {
         const passwordInput = document.getElementById('passwordInput');
         const eyeIcon = document.getElementById('eyeIcon');
