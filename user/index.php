@@ -33,15 +33,15 @@ $rice_meals_list = [
 ];
 
 $breakfast_sides = [
-    ['name'=>'Hotdog','price'=>15,'image'=>'hotdog.jpg','folder'=>'ulam'],
-    ['name'=>'Egg','price'=>15,'image'=>'egg.jpg','folder'=>'ulam'],
-    ['name'=>'Spam','price'=>25,'image'=>'spam.jpg','folder'=>'ulam'],
-    ['name'=>'Longganisa','price'=>15,'image'=>'longganisa.jpg','folder'=>'ulam'],
+    ['productID'=>0, 'name'=>'Hotdog','price'=>15,'image'=>'hotdog.jpg','folder'=>'ulam'],
+    ['productID'=>0, 'name'=>'Egg','price'=>15,'image'=>'egg.jpg','folder'=>'ulam'],
+    ['productID'=>0, 'name'=>'Spam','price'=>25,'image'=>'spam.jpg','folder'=>'ulam'],
+    ['productID'=>0, 'name'=>'Longganisa','price'=>15,'image'=>'longganisa.jpg','folder'=>'ulam'],
 ];
 $RICE_PRICE = 15;
-$accesories_items = [['name'=>'Ribbon','price'=>5,'image'=>'ribbon.jpg','folder'=>'accesories']];
+$accesories_items = [['productID'=>0, 'name'=>'Ribbon','price'=>5,'image'=>'ribbon.jpg','folder'=>'accesories']];
 
-// --- DYNAMIC FETCH ---
+// --- DYNAMIC FETCH FROM DATABASE ---
 $ulam_items = []; $meryenda_items = []; $candies_items = []; $coffee_items = []; $drinks_items = []; $noodles_items = []; $essentials_items = [];
 $sql = "SELECT productID, productname, price, productImage, categoryID FROM products WHERE is_available = 1 ORDER BY productID ASC";
 $res = $con->query($sql);
@@ -64,10 +64,9 @@ $custom_ulam_items = array_filter($ulam_items, function($item) {
     return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice']);
 });
 
-// Separate Meat and Gulay for the modal
 $meat_items = array_filter($custom_ulam_items, function($i) { return preg_match('/chicken|pork|beef|meat|adobo|bbq|tocino|longganisa|spam|hotdog/i', $i['name']); });
 $gulay_items = array_filter($custom_ulam_items, function($i) { return preg_match('/gulay|talong|sitaw|ampalaya|sayote|vegetable/i', $i['name']); });
-if(empty($meat_items)) $meat_items = $custom_ulam_items; // Fallback
+if(empty($meat_items)) $meat_items = $custom_ulam_items;
 
 $active_cat = isset($_GET['cat']) ? $_GET['cat'] : 'all';
 
@@ -75,14 +74,15 @@ function renderGrid($items, $clickAction = 'qty') {
     if (empty($items)) return '<p style="color:var(--text-muted);padding:1rem;">No items available.</p>';
     $html = '<div class="image-grid">';
     foreach ($items as $item) {
+        $pid = isset($item['productID']) ? $item['productID'] : 0;
         $slug = slugify($item['name']);
         $img = imgTag($item['folder'], $item['image']);
         $ph = 'https://via.placeholder.com/200?text=' . urlencode($item['name']);
-        $action = (in_array($item['name'], ['Siomai', 'Assorted Candies (4pcs)'])) ? 'amount' : $clickAction;
+        $action = (stripos($item['name'], 'Siomai') !== false || stripos($item['name'], 'Candies') !== false) ? 'amount' : $clickAction;
         $onclick = ($action === 'amount') ? "openCustomAmountModal(this.closest('.img-card'))" : "openQtyModal(this.closest('.img-card'))";
         
         $html .= '
-        <div class="img-card" data-slug="'.$slug.'" data-productid="'.$item['productID'].'" data-name="'.htmlspecialchars($item['name']).'" data-price="'.$item['price'].'" data-img="'.$img.'">
+        <div class="img-card" data-slug="'.$slug.'" data-productid="'.$pid.'" data-name="'.htmlspecialchars($item['name']).'" data-price="'.$item['price'].'" data-img="'.$img.'">
             <div class="img-card-img-wrapper" onclick="'.$onclick.'">
                 <img src="'.$img.'" alt="'.htmlspecialchars($item['name']).'" onerror="this.src=\''.$ph.'\'">
             </div>
@@ -114,7 +114,11 @@ function renderGrid($items, $clickAction = 'qty') {
 :root{--brand-red:#8B0000;--brand-light:#fff0f0;--bg-light:#f8f9fa;--text-dark:#333;--text-muted:#6c757d;--sidebar-width:260px;--border-color:#e9ecef}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-height:100vh}
+
+/* ✅ SIDEBAR LOGO STYLES */
 .sidebar{width:var(--sidebar-width);background:#fff;border-right:1px solid var(--border-color);display:flex;flex-direction:column;height:100vh;position:fixed;left:0;top:0;z-index:100}
+.sidebar-logo{padding: 1.5rem; font-size: 1.2rem; font-weight: 700; color: var(--brand-red); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;}
+
 .nav-section{padding:1rem 0;flex:1;overflow-y:auto}
 .nav-link{display:flex;align-items:center;gap:12px;padding:12px 1.5rem;color:var(--text-dark);text-decoration:none;font-weight:500;font-size:.95rem;transition:all .2s;border-left:3px solid transparent}
 .nav-link:hover{background:#f8f9fa}
@@ -123,6 +127,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .nav-link.active i{color:var(--brand-red)}
 .user-section{padding:1rem 1.5rem;border-top:1px solid var(--border-color);font-size:.9rem;display:flex;align-items:center;gap:8px}
 .user-section a{color:var(--brand-red);text-decoration:none;font-weight:600;margin-left:auto}
+
 .main-content{flex:1;margin-left:var(--sidebar-width);display:flex;flex-direction:column}
 .top-header{background:#fff;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);position:sticky;top:0;z-index:50}
 .search-bar{flex:1;max-width:500px;position:relative}
@@ -130,12 +135,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .search-bar i{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--text-muted)}
 .cart-btn{background:var(--brand-red);color:#fff;border:none;width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:1.2rem;text-decoration:none}
 .cart-badge{position:absolute;top:-6px;right:-6px;background:#ffc107;color:#000;font-size:.7rem;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+
 .content-area{flex:1;padding:2rem;overflow-y:auto}
 .page-header{margin-bottom:2rem}
 .page-header h1{font-size:1.8rem;font-weight:700;color:var(--text-dark);margin-bottom:.5rem}
 .category-section{margin-bottom:3rem}
 .category-title{font-size:1.3rem;font-weight:700;color:var(--brand-red);margin-bottom:1.5rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--border-color);padding-bottom:.5rem}
 .sub-category-title{font-size:1.1rem;font-weight:600;color:var(--text-dark);margin:1.5rem 0 1rem 0;display:flex;align-items:center;gap:8px}
+
 .rice-list{display:flex;flex-direction:column;gap:1rem;max-width:600px}
 .rice-item{display:flex;justify-content:space-between;align-items:center;padding:1.2rem;background:#fff;border-radius:10px;box-shadow:0 2px 5px rgba(0,0,0,.05);border:1px solid var(--border-color);cursor:pointer;transition:all .2s}
 .rice-item:hover{border-color:var(--brand-red);transform:translateX(5px)}
@@ -143,21 +150,29 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .rice-item-price{font-weight:700;color:var(--brand-red);font-size:1.2rem}
 .btn-custom-order{margin-top:2rem;background:var(--brand-red);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer;font-size:1rem;display:inline-flex;align-items:center;gap:8px}
 .btn-custom-order:hover{background:#6d0000}
+
 .image-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1.5rem}
-.img-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:transform .2s;border:1px solid var(--border-color);display:flex;flex-direction:column}
+.img-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:transform .2s;border:1px solid var(--border-color);display:flex;flex-direction:column; height: 100%;}
 .img-card:hover{transform:translateY(-4px);box-shadow:0 8px 20px rgba(0,0,0,.12)}
 .img-card-img-wrapper{width:100%;height:160px;background:#eee;overflow:hidden;cursor:pointer}
 .img-card img{width:100%;height:100%;object-fit:cover}
-.img-card-info{padding:10px;text-align:center;flex:1;display:flex;flex-direction:column;justify-content:space-between}
-.img-card-name{font-size:.9rem;font-weight:600;color:var(--text-dark);margin-bottom:5px;cursor:pointer}
+
+/* ✅ FIX: Alignment for Add to Cart button */
+.img-card-info{padding:10px;text-align:center;flex:1;display:flex;flex-direction:column;}
+.img-card-name{font-size:.9rem;font-weight:600;color:var(--text-dark);margin-bottom:5px;cursor:pointer; min-height: 40px; display: flex; align-items: center; justify-content: center;}
 .img-card-price{font-size:1rem;font-weight:700;color:var(--brand-red);margin-bottom:8px}
-.qty-controls{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:5px}
+.qty-controls{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom: 10px;}
 .qty-btn{width:28px;height:28px;border:1px solid var(--border-color);background:#fff;border-radius:6px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;color:var(--brand-red);font-weight:700}
 .qty-btn:hover{background:var(--brand-light)}
 .qty-display{font-weight:700;min-width:24px;text-align:center;font-size:.95rem}
-.add-btn{margin-top:8px;width:100%;padding:8px 10px;background:var(--brand-red);color:#fff;border:none;border-radius:8px;font-weight:600;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .2s}
+
+/* ✅ FIX: Push button to bottom */
+.add-btn{margin-top: auto; width:100%;padding:8px 10px;background:var(--brand-red);color:#fff;border:none;border-radius:8px;font-weight:600;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .2s}
 .add-btn:hover{background:#6d0000}
+
 .warning-banner{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:15px;color:#856404;font-size:0.9rem;display:flex;align-items:center;gap:10px}
+
+/* Modals */
 .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:1000;justify-content:center;align-items:center}
 .modal-overlay.active{display:flex}
 .modal-content{background:#fff;border-radius:16px;padding:2rem;max-width:700px;width:90%;max-height:90vh;overflow-y:auto}
@@ -197,6 +212,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 <body>
 
 <aside class="sidebar" id="sidebar">
+    <!-- ✅ LOGO RESTORED -->
+    <div class="sidebar-logo"><i class="bi bi-building"></i> Meryll Eatery</div>
     <div class="nav-section">
         <a href="index.php" class="nav-link <?=$active_cat=='all'?'active':''?>"><i class="bi bi-calendar-day"></i> Today's Menu</a>
         <a href="my_orders.php" class="nav-link"><i class="bi bi-receipt"></i> My Orders</a>
@@ -270,58 +287,31 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         </div>
         <?php endif; ?>
 
+        <!-- ✅ FIX: Use database items for Meryenda (includes Spaghetti, Palabok, etc.) -->
         <?php if($active_cat=='all'||$active_cat=='meryenda'): ?>
         <div class="category-section">
             <div class="category-title"><i class="bi bi-cookie"></i> Meryenda & Snacks</div>
-            
-            <div class="sub-category-title"><i class="bi bi-egg-fried"></i> Lumpia & Siomai</div>
-            <?=renderGrid([
-                ['productID'=>0,'name'=>'Lumpiang Gulay','price'=>15,'image'=>'lumpia_gulay.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Lumpiang Shanghai','price'=>20,'image'=>'lumpia_shanghai.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Lumpiang Ube','price'=>20,'image'=>'lumpia_ube.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Siomai','price'=>5,'image'=>'siomai.jpg','folder'=>'meryenda']
-            ],'amount')?>
-
-            <div class="sub-category-title"><i class="bi bi-circle"></i> Biscuits</div>
-            <?=renderGrid([
-                ['productID'=>0,'name'=>'Skyflakes','price'=>10,'image'=>'skyflakes.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Snacku','price'=>20,'image'=>'snacku.jpg','folder'=>'meryenda']
-            ])?>
-
-            <div class="sub-category-title"><i class="bi bi-stars"></i> Chichirya</div>
-            <?=renderGrid([
-                ['productID'=>0,'name'=>'Nova','price'=>20,'image'=>'nova.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Piattos','price'=>20,'image'=>'piattos.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Vcut','price'=>20,'image'=>'vcut.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Mr. Chips Mais','price'=>12,'image'=>'mr_chips.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Mang Juan','price'=>12,'image'=>'mang_juan.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Loaded','price'=>12,'image'=>'loaded.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Xtreme','price'=>10,'image'=>'xtreme.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Crossini','price'=>15,'image'=>'crossini.jpg','folder'=>'meryenda'],
-                ['productID'=>0,'name'=>'Pillows','price'=>12,'image'=>'pillows.jpg','folder'=>'meryenda']
-            ])?>
+            <?=renderGrid($meryenda_items, 'amount')?> 
         </div>
         <?php endif; ?>
 
         <?php if($active_cat=='all'||$active_cat=='coffee'): ?><div class="category-section"><div class="category-title"><i class="bi bi-cup-fill"></i> Coffee</div><?=renderGrid($coffee_items)?></div><?php endif; ?>
         <?php if($active_cat=='all'||$active_cat=='drinks'): ?><div class="category-section"><div class="category-title"><i class="bi bi-cup-straw"></i> Drinks</div><?=renderGrid($drinks_items)?></div><?php endif; ?>
 
+        <!-- ✅ FIX: Use database items for Candies -->
         <?php if($active_cat=='all'||$active_cat=='candies'): ?>
         <div class="category-section">
             <div class="category-title"><i class="bi bi-heart"></i> Candies</div>
             <p style="color:var(--brand-red);font-weight:600;margin-bottom:1rem;">🍬 All Candies: 4 pieces for ₱5.00</p>
-            <?=renderGrid([['productID'=>0,'name'=>'Assorted Candies (4pcs)','price'=>5,'image'=>'candies.jpg','folder'=>'candies']],'amount')?>
+            <?=renderGrid($candies_items, 'amount')?>
         </div>
         <?php endif; ?>
 
+        <!-- ✅ FIX: Use database items for Noodles -->
         <?php if($active_cat=='all'||$active_cat=='noodles'): ?>
         <div class="category-section">
             <div class="category-title"><i class="bi bi-egg"></i> Noodles</div>
-            <?=renderGrid([
-                ['productID'=>0,'name'=>'Pancit Canton (Regular)','price'=>20,'image'=>'pancit.jpg','folder'=>'noodles'],
-                ['productID'=>0,'name'=>'Pancit Canton (Large)','price'=>25,'image'=>'pancit.jpg','folder'=>'noodles'],
-                ['productID'=>0,'name'=>'Pancit Canton (Overload)','price'=>35,'image'=>'pancit.jpg','folder'=>'noodles']
-            ])?>
+            <?=renderGrid($noodles_items)?>
         </div>
         <?php endif; ?>
 
@@ -366,7 +356,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
                     <div class="rice-icon">🍚</div><div class="rice-name">White Rice</div>
                 </div>
                 <div class="rice-type-option" data-type="fried" onclick="selectCustomRiceType(this)">
-                    <div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div>
+                    <div class="rice-icon"></div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div>
                 </div>
             </div>
             <div class="rice-price-note">Rice is ₱15. Select "No Rice" for Ulam only.</div>
