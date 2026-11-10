@@ -34,6 +34,46 @@ $completed_count = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
 $stmt = $con->prepare("SELECT SUM(total_amount) as total FROM orders WHERE status = 'Completed'");
 $stmt->execute();
 $total_revenue = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
+
+// Fetch products for dashboard grid
+$products = $con->query("SELECT * FROM products ORDER BY productID DESC LIMIT 12");
+
+// Handle Quick Product Update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quick_update'])) {
+    $product_id = (int)$_POST['product_id'];
+    $product_name = $con->real_escape_string(trim($_POST['product_name']));
+    $price = (float)$_POST['price'];
+    $stock = (int)$_POST['stock'];
+    
+    // Handle image upload
+    $image_path = '';
+    if (isset($_FILES['product_image']) && $_FILES['product_image']['error'] === 0) {
+        $upload_dir = '../images/products/';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
+        
+        $file_ext = strtolower(pathinfo($_FILES['product_image']['name'], PATHINFO_EXTENSION));
+        $new_filename = uniqid() . '.' . $file_ext;
+        $upload_path = $upload_dir . $new_filename;
+        
+        if (move_uploaded_file($_FILES['product_image']['tmp_name'], $upload_path)) {
+            $image_path = $new_filename;
+        }
+    }
+    
+    if ($image_path) {
+        $stmt = $con->prepare("UPDATE products SET productname=?, price=?, stock=?, productImage=? WHERE productID=?");
+        $stmt->bind_param("sdisi", $product_name, $price, $stock, $image_path, $product_id);
+    } else {
+        $stmt = $con->prepare("UPDATE products SET productname=?, price=?, stock=? WHERE productID=?");
+        $stmt->bind_param("sdii", $product_name, $price, $stock, $product_id);
+    }
+    
+    if ($stmt->execute()) {
+        $success_msg = "Product updated successfully!";
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -47,16 +87,21 @@ $total_revenue = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
 </head>
 <body>
 
+<!-- Mobile Menu Toggle -->
+<button class="mobile-menu-toggle" onclick="toggleSidebar()">
+    <i class="fas fa-bars"></i>
+</button>
+
 <!-- ✅ IDENTICAL SIDEBAR START -->
 <aside class="sidebar" id="sidebar">
-    <button class="sidebar-close" onclick="closeSidebar()"><i class="fas fa-arrow-left"></i></button>
+    <button class="sidebar-close" onclick="toggleSidebar()"><i class="fas fa-arrow-left"></i></button>
     <a href="admin.php" class="logo">
         <span class="logo-icon"><i class="fas fa-utensils"></i></span> Meryll Eatery
     </a>
     <ul class="nav-menu">
         <li class="nav-item"><a href="admin.php" class="nav-link active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
         <li class="nav-item"><a href="admin_orders.php" class="nav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a></li>
-        <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-file-invoice"></i> Order Details</a></li>
+        <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-receipt"></i> Order Details</a></li>
         <li class="nav-item"><a href="admin_inventory.php" class="nav-link"><i class="fas fa-boxes-stacked"></i> Inventory</a></li>
         <li class="nav-item"><a href="admin_report.php" class="nav-link"><i class="fas fa-chart-line"></i> Monthly Report</a></li>
     </ul>
@@ -67,15 +112,30 @@ $total_revenue = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
 </aside>
 <!-- ✅ IDENTICAL SIDEBAR END -->
 
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
 <main class="main-content">
-    <div class="admin-container" style="max-width: 1200px; margin: 0 auto;">
+    <div class="admin-container">
         <div class="admin-header">
             <div>
                 <h1>Dashboard Overview</h1>
                 <p style="color: var(--admin-text-muted, #64748b);"><?= date('l, F j, Y') ?></p>
             </div>
+        </div>
+
+        <?php if (isset($success_msg)): ?>
+            <div class="alert-msg success"><i class="fas fa-check-circle"></i> <?php echo $success_msg; ?></div>
+        <?php endif; ?>
+
+        <!-- ✅ CAMERA UPLOAD SECTION -->
+        <div class="camera-section">
+            <h3><i class="fas fa-camera" style="color:#8B0000;"></i> Quick Add Product with Camera</h3>
+            <div class="camera-upload-area" onclick="document.getElementById('cameraInput').click()">
+                <i class="fas fa-camera"></i>
+                <p><strong>Tap to take a photo</strong> or upload from gallery</p>
+                <button class="camera-btn"><i class="fas fa-plus"></i> Add Product</button>
+            </div>
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleCameraUpload(this)">
         </div>
 
         <!-- Stats Grid with REAL DATABASE DATA -->
@@ -102,15 +162,117 @@ $total_revenue = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
                 </div>
             </div>
         </div>
+
+        <!-- Products Grid -->
+        <div class="admin-card">
+            <h3><i class="fas fa-boxes-stacked" style="color:#8B0000;"></i> Quick Product Manager</h3>
+            <p style="color:#64748b;margin-bottom:1rem;">Click any product to edit instantly</p>
+            
+            <?php if ($products && $products->num_rows > 0): ?>
+                <div class="products-grid">
+                    <?php while($prod = $products->fetch_assoc()): ?>
+                        <div class="product-card" onclick="openQuickEdit(<?= htmlspecialchars(json_encode($prod)) ?>)">
+                            <img src="../images/products/<?= htmlspecialchars($prod['productImage'] ?: 'placeholder.jpg') ?>" 
+                                 alt="<?= htmlspecialchars($prod['productname']) ?>" 
+                                 class="product-image"
+                                 onerror="this.src='https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image'">
+                            <div class="quick-edit-badge"><i class="fas fa-edit"></i> Edit</div>
+                            <div class="product-info">
+                                <div class="product-name"><?= htmlspecialchars($prod['productname']) ?></div>
+                                <div class="product-price">₱<?= number_format($prod['price'], 2) ?></div>
+                                <div class="product-stock">Stock: <?= $prod['stock'] ?></div>
+                            </div>
+                        </div>
+                    <?php endwhile; ?>
+                </div>
+            <?php else: ?>
+                <p style="text-align:center;padding:2rem;color:#64748b;">No products yet. Use the camera above to add your first product!</p>
+            <?php endif; ?>
+        </div>
     </div>
 </main>
 
+<!-- Quick Edit Modal -->
+<div class="modal-overlay" id="quickEditModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Quick Edit Product</h3>
+            <button class="modal-close" onclick="closeQuickEdit()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="quick_update" value="1">
+                <input type="hidden" name="product_id" id="edit_product_id">
+                
+                <div class="form-group">
+                    <label>Product Image</label>
+                    <input type="file" name="product_image" accept="image/*" capture="environment" style="padding:0.5rem;">
+                </div>
+                
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" name="product_name" id="edit_product_name" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Price (₱)</label>
+                        <input type="number" step="0.01" name="price" id="edit_price" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Stock</label>
+                        <input type="number" name="stock" id="edit_stock" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary" style="width:100%;margin-top:1rem;">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
-function closeSidebar() { 
-    document.getElementById('sidebar').classList.remove('active'); 
-    document.getElementById('sidebarOverlay').classList.remove('active'); 
-    document.body.style.overflow = ''; 
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('active');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+    document.body.style.overflow = document.getElementById('sidebar').classList.contains('active') ? 'hidden' : '';
 }
+
+function handleCameraUpload(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('product_image', file);
+        formData.append('quick_add', '1');
+        
+        // Show loading
+        alert('Processing image... Please enter product details next.');
+        
+        // For now, redirect to inventory with the image
+        // In production, you'd handle this via AJAX
+        window.location.href = 'admin_inventory.php?camera_upload=1';
+    }
+}
+
+function openQuickEdit(product) {
+    document.getElementById('edit_product_id').value = product.productID;
+    document.getElementById('edit_product_name').value = product.productname;
+    document.getElementById('edit_price').value = product.price;
+    document.getElementById('edit_stock').value = product.stock;
+    document.getElementById('quickEditModal').classList.add('active');
+}
+
+function closeQuickEdit() {
+    document.getElementById('quickEditModal').classList.remove('active');
+}
+
+// Close modal when clicking outside
+document.getElementById('quickEditModal').addEventListener('click', function(e) {
+    if (e.target === this) closeQuickEdit();
+});
 </script>
+
 </body>
 </html>
