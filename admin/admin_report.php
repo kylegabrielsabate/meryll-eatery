@@ -35,14 +35,19 @@ $top_items_report = $con->query("
     <link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
-    <!-- ✅ IDENTICAL SIDEBAR START -->
+    <!-- ✅ BURGER MENU BUTTON -->
+    <button class="mobile-menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+
+    <!-- ✅ SIDEBAR OVERLAY -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
     <aside class="sidebar" id="sidebar">
-        <button class="sidebar-close" onclick="closeSidebar()"><i class="fas fa-arrow-left"></i></button>
+        <button class="sidebar-close" onclick="toggleSidebar()"><i class="fas fa-arrow-left"></i></button>
         <a href="admin.php" class="logo"><span class="logo-icon"><i class="fas fa-utensils"></i></span> Meryll Eatery</a>
         <ul class="nav-menu">
             <li class="nav-item"><a href="admin.php" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
             <li class="nav-item"><a href="admin_orders.php" class="nav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a></li>
-            <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-file-invoice"></i> Order Details</a></li>
+            <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-receipt"></i> Order Details</a></li>
             <li class="nav-item"><a href="admin_inventory.php" class="nav-link"><i class="fas fa-boxes-stacked"></i> Inventory</a></li>
             <li class="nav-item"><a href="admin_report.php" class="nav-link active"><i class="fas fa-chart-line"></i> Monthly Report</a></li>
         </ul>
@@ -51,9 +56,6 @@ $top_items_report = $con->query("
             <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </aside>
-    <!-- ✅ IDENTICAL SIDEBAR END -->
-
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
     
     <main class="main-content">
         <div class="admin-container" style="max-width: 1000px; margin: 0 auto;">
@@ -70,19 +72,21 @@ $top_items_report = $con->query("
             <div class="admin-card">
                 <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-trophy" style="color:#8B0000;"></i> Top 5 Most Sold Items</h3>
                 <?php if ($top_items_report && $top_items_report->num_rows > 0): ?>
-                    <table class="data-table">
-                        <thead><tr><th>Rank</th><th>Item Name</th><th>Total Quantity Sold</th><th>Total Revenue</th></tr></thead>
-                        <tbody>
-                            <?php $rank = 1; while($item = $top_items_report->fetch_assoc()): ?>
-                            <tr>
-                                <td style="font-weight:700;">#<?php echo $rank++; ?></td>
-                                <td><?php echo htmlspecialchars($item['item_name']); ?></td>
-                                <td style="font-weight:700; color:#8B0000;"><?php echo $item['total_sold']; ?> pcs/servings</td>
-                                <td style="font-weight:700;">₱<?php echo number_format($item['revenue'], 2); ?></td>
-                            </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead><tr><th>Rank</th><th>Item Name</th><th>Total Quantity Sold</th><th>Total Revenue</th></tr></thead>
+                            <tbody>
+                                <?php $rank = 1; while($item = $top_items_report->fetch_assoc()): ?>
+                                <tr>
+                                    <td style="font-weight:700;">#<?php echo $rank++; ?></td>
+                                    <td><?php echo htmlspecialchars($item['item_name']); ?></td>
+                                    <td style="font-weight:700; color:#8B0000;"><?php echo $item['total_sold']; ?> pcs/servings</td>
+                                    <td style="font-weight:700;">₱<?php echo number_format($item['revenue'], 2); ?></td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 <?php else: ?>
                     <p style="text-align:center;color:#94a3b8;padding:2rem;">No sales data available yet.</p>
                 <?php endif; ?>
@@ -93,31 +97,37 @@ $top_items_report = $con->query("
                 <?php if (empty($monthly_data)): ?>
                     <p style="text-align: center; color: #94a3b8; padding: 2rem;">No order data available yet.</p>
                 <?php else: ?>
-                    <table class="data-table">
-                        <thead><tr><th>Month / Year</th><th>Total Orders</th><th>Total Revenue</th></tr></thead>
-                        <tbody>
-                            <?php $grandTotal = 0; $grandOrders = 0; foreach ($monthly_data as $data): $grandTotal += $data['revenue']; $grandOrders += $data['total_orders']; ?>
-                                <tr>
-                                    <td style="font-weight: 700;"><?php echo $data['month_year']; ?></td>
-                                    <td><?php echo $data['total_orders']; ?> orders</td>
-                                    <td style="font-weight: 700; color: #8B0000;">₱<?php echo number_format($data['revenue'], 2); ?></td>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead><tr><th>Month / Year</th><th>Total Orders</th><th>Total Revenue</th></tr></thead>
+                            <tbody>
+                                <?php $grandTotal = 0; $grandOrders = 0; foreach ($monthly_data as $data): $grandTotal += $data['revenue']; $grandOrders += $data['total_orders']; ?>
+                                    <tr>
+                                        <td style="font-weight: 700;"><?php echo $data['month_year']; ?></td>
+                                        <td><?php echo $data['total_orders']; ?> orders</td>
+                                        <td style="font-weight: 700; color: #8B0000;">₱<?php echo number_format($data['revenue'], 2); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                            <tfoot>
+                                <tr style="background: #f8f9fa; font-weight: 800;">
+                                    <td>GRAND TOTAL</td>
+                                    <td><?php echo $grandOrders; ?> orders</td>
+                                    <td style="color: #8B0000; font-size: 1.1rem;">₱<?php echo number_format($grandTotal, 2); ?></td>
                                 </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                        <tfoot>
-                            <tr style="background: #f8f9fa; font-weight: 800;">
-                                <td>GRAND TOTAL</td>
-                                <td><?php echo $grandOrders; ?> orders</td>
-                                <td style="color: #8B0000; font-size: 1.1rem;">₱<?php echo number_format($grandTotal, 2); ?></td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                            </tfoot>
+                        </table>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
     </main>
     <script>
-        function closeSidebar() { document.getElementById('sidebar').classList.remove('active'); document.getElementById('sidebarOverlay').classList.remove('active'); document.body.style.overflow = ''; }
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+        document.getElementById('sidebarOverlay').classList.toggle('active');
+        document.body.style.overflow = document.getElementById('sidebar').classList.contains('active') ? 'hidden' : '';
+    }
     </script>
 </body>
 </html>

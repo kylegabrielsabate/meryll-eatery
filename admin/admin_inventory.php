@@ -6,7 +6,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') { header("Loc
 $categories = [
     1 => 'Ulam', 2 => 'Meryenda', 3 => 'Breakfast', 4 => 'Coffee', 
     5 => 'Drinks', 6 => 'Snacks', 7 => 'Candies', 8 => 'Noodles', 
-    9 => 'Essentials', 10 => 'Accesories'
+    9 => 'Essentials', 10 => 'Accessories'
 ];
 
 $message = ""; $msg_type = "";
@@ -57,14 +57,19 @@ $products = $con->query($sql);
     <link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
-    <!-- ✅ IDENTICAL SIDEBAR START -->
+    <!-- ✅ BURGER MENU BUTTON -->
+    <button class="mobile-menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+
+    <!-- ✅ SIDEBAR OVERLAY -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
     <aside class="sidebar" id="sidebar">
-        <button class="sidebar-close" onclick="closeSidebar()"><i class="fas fa-arrow-left"></i></button>
+        <button class="sidebar-close" onclick="toggleSidebar()"><i class="fas fa-arrow-left"></i></button>
         <a href="admin.php" class="logo"><span class="logo-icon"><i class="fas fa-utensils"></i></span> Meryll Eatery</a>
         <ul class="nav-menu">
             <li class="nav-item"><a href="admin.php" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
             <li class="nav-item"><a href="admin_orders.php" class="nav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a></li>
-            <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-file-invoice"></i> Order Details</a></li>
+            <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-receipt"></i> Order Details</a></li>
             <li class="nav-item"><a href="admin_inventory.php" class="nav-link active"><i class="fas fa-boxes-stacked"></i> Inventory</a></li>
             <li class="nav-item"><a href="admin_report.php" class="nav-link"><i class="fas fa-chart-line"></i> Monthly Report</a></li>
         </ul>
@@ -73,9 +78,6 @@ $products = $con->query($sql);
             <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </aside>
-    <!-- ✅ IDENTICAL SIDEBAR END -->
-
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
     <main class="main-content">
         <div class="admin-container" style="max-width: 1200px; margin: 0 auto;">
@@ -92,7 +94,8 @@ $products = $con->query($sql);
             </div>
 
             <div class="admin-card" style="padding: 0; overflow: hidden;">
-                <div style="overflow-x: auto;">
+                <!-- ✅ TABLE WRAPPED IN SCROLLABLE DIV -->
+                <div class="table-responsive">
                     <table class="data-table" style="width: 100%; border-collapse: collapse;">
                         <thead><tr><th>ID</th><th>Product Name</th><th>Category</th><th>Unit</th><th>Price</th><th>Stock</th><th>Status</th><th style="text-align: center;">Actions</th></tr></thead>
                         <tbody>
@@ -155,23 +158,27 @@ $products = $con->query($sql);
     </div>
 
     <script>
-        function closeSidebar() { document.getElementById('sidebar').classList.remove('active'); document.getElementById('sidebarOverlay').classList.remove('active'); document.body.style.overflow = ''; }
-        function openModal(action, data = null) {
-            const modal = document.getElementById('productModal'); modal.classList.add('active');
-            if (action === 'add') {
-                document.getElementById('modalTitle').textContent = 'Add New Product'; document.getElementById('submitBtn').textContent = 'Add Product';
-                document.getElementById('actionType').value = 'add'; document.getElementById('editProductID').value = '';
-                document.getElementById('inputName').value = ''; document.getElementById('inputCategory').value = '1';
-                document.getElementById('inputUnit').value = ''; document.getElementById('inputPrice').value = ''; document.getElementById('inputStock').value = ''; document.getElementById('inputImage').value = '';
-            } else if (action === 'edit' && data) {
-                document.getElementById('modalTitle').textContent = 'Edit Product'; document.getElementById('submitBtn').textContent = 'Save Changes';
-                document.getElementById('actionType').value = 'update'; document.getElementById('editProductID').value = data.productID;
-                document.getElementById('inputName').value = data.productname; document.getElementById('inputCategory').value = data.categoryID;
-                document.getElementById('inputUnit').value = data.unit; document.getElementById('inputPrice').value = data.price; document.getElementById('inputStock').value = data.stock; document.getElementById('inputImage').value = data.productImage || '';
-            }
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+        document.getElementById('sidebarOverlay').classList.toggle('active');
+        document.body.style.overflow = document.getElementById('sidebar').classList.contains('active') ? 'hidden' : '';
+    }
+    function openModal(action, data = null) {
+        const modal = document.getElementById('productModal'); modal.classList.add('active');
+        if (action === 'add') {
+            document.getElementById('modalTitle').textContent = 'Add New Product'; document.getElementById('submitBtn').textContent = 'Add Product';
+            document.getElementById('actionType').value = 'add'; document.getElementById('editProductID').value = '';
+            document.getElementById('inputName').value = ''; document.getElementById('inputCategory').value = '1';
+            document.getElementById('inputUnit').value = ''; document.getElementById('inputPrice').value = ''; document.getElementById('inputStock').value = ''; document.getElementById('inputImage').value = '';
+        } else if (action === 'edit' && data) {
+            document.getElementById('modalTitle').textContent = 'Edit Product'; document.getElementById('submitBtn').textContent = 'Save Changes';
+            document.getElementById('actionType').value = 'update'; document.getElementById('editProductID').value = data.productID;
+            document.getElementById('inputName').value = data.productname; document.getElementById('inputCategory').value = data.categoryID;
+            document.getElementById('inputUnit').value = data.unit; document.getElementById('inputPrice').value = data.price; document.getElementById('inputStock').value = data.stock; document.getElementById('inputImage').value = data.productImage || '';
         }
-        function closeModal() { document.getElementById('productModal').classList.remove('active'); }
-        document.getElementById('productModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+    }
+    function closeModal() { document.getElementById('productModal').classList.remove('active'); }
+    document.getElementById('productModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
     </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /* ============================================
-   KUYA BATAS ADMIN - BULLETPROOF MOBILE CSS
+   KUYA BATAS ADMIN - DYNAMIC & RESPONSIVE
    ============================================ */
 
 :root {
@@ -44,23 +44,23 @@ body {
    SIDEBAR
    ============================================ */
 .sidebar {
-    width: 280px;
+    width: clamp(250px, 20vw, 280px); /* Dynamic width */
     background: var(--admin-dark);
     display: flex;
     flex-direction: column;
-    height: 100%; /* ✅ Uses parent height, immune to mobile URL bar */
+    height: 100%;
     max-height: 100%;
     position: fixed;
     left: 0;
     top: 0;
     z-index: 100;
     transition: transform 0.3s ease;
-    overflow: hidden; /* Prevents whole sidebar from scrolling */
+    overflow: hidden;
 }
 
 .sidebar .logo {
     color: #fff;
-    font-size: 1.3rem;
+    font-size: clamp(1.1rem, 2vw, 1.3rem);
     font-weight: 800;
     padding: 1rem 1.5rem;
     border-bottom: 1px solid #334155;
@@ -91,15 +91,14 @@ body {
     justify-content: center;
 }
 
-/* ✅ ONLY the menu scrolls */
 .nav-menu {
     list-style: none;
     padding: 0.5rem 0;
     margin: 0;
-    flex: 1; /* Takes ALL remaining space */
+    flex: 1;
     overflow-y: auto; 
     -webkit-overflow-scrolling: touch; 
-    overscroll-behavior: contain; /* Prevents scroll from bleeding to body */
+    overscroll-behavior: contain;
 }
 
 .nav-item { margin: 0; }
@@ -108,11 +107,11 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 1.5rem;
+    padding: clamp(10px, 1.5vw, 12px) 1.5rem;
     color: #cbd5e1;
     text-decoration: none;
     font-weight: 500;
-    font-size: 0.95rem;
+    font-size: clamp(0.9rem, 1.5vw, 0.95rem);
     transition: all 0.2s;
     border-left: 3px solid transparent;
     min-height: 48px;
@@ -128,7 +127,6 @@ body {
 .nav-link i { width: 20px; text-align: center; color: #94a3b8; font-size: 1rem; }
 .nav-link.active i { color: var(--admin-accent); }
 
-/* ✅ Footer is locked to the absolute bottom */
 .sidebar-footer {
     padding: 0.8rem 1.5rem;
     border-top: 1px solid #334155;
@@ -150,8 +148,8 @@ body {
    ============================================ */
 .main-content {
     flex: 1;
-    margin-left: 280px;
-    padding: 2rem;
+    margin-left: clamp(250px, 20vw, 280px);
+    padding: clamp(1rem, 3vw, 2rem);
     min-height: 100%;
     transition: margin-left 0.3s ease;
 }
@@ -167,8 +165,13 @@ body {
     gap: 1rem;
 }
 
-.admin-header h1 { font-size: 1.8rem; font-weight: 800; color: var(--admin-text); margin-bottom: 0.3rem; }
-.admin-header p { color: var(--admin-text-muted); font-size: 0.95rem; }
+.admin-header h1 { 
+    font-size: clamp(1.5rem, 4vw, 1.8rem); 
+    font-weight: 800; 
+    color: var(--admin-text); 
+    margin-bottom: 0.3rem; 
+}
+.admin-header p { color: var(--admin-text-muted); font-size: clamp(0.85rem, 2vw, 0.95rem); }
 
 .mobile-menu-toggle {
     display: none;
@@ -193,11 +196,21 @@ body {
 /* ============================================
    STATS & PRODUCTS
    ============================================ */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.stats-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); 
+    gap: clamp(1rem, 2vw, 1.5rem); 
+    margin-bottom: 2rem; 
+}
 .stat-card {
-    background: var(--admin-card); padding: 1.5rem; border-radius: 16px;
+    background: var(--admin-card); 
+    padding: clamp(1rem, 2vw, 1.5rem); 
+    border-radius: 16px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    display: flex; align-items: center; gap: 1rem; transition: transform 0.2s;
+    display: flex; 
+    align-items: center; 
+    gap: 1rem; 
+    transition: transform 0.2s;
 }
 .stat-card:hover { transform: translateY(-2px); }
 .stat-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
@@ -205,9 +218,9 @@ body {
 .stat-icon.green { background: #f0fdf4; color: #10b981; }
 .stat-icon.blue { background: #eff6ff; color: #3b82f6; }
 .stat-info h3 { font-size: 0.85rem; color: var(--admin-text-muted); font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-info p { font-size: 1.5rem; font-weight: 800; color: var(--admin-text); margin: 0.3rem 0 0 0; }
+.stat-info p { font-size: clamp(1.2rem, 3vw, 1.5rem); font-weight: 800; color: var(--admin-text); margin: 0.3rem 0 0 0; }
 
-.products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+.products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 1.5rem; margin-top: 2rem; }
 .product-card {
     background: var(--admin-card); border-radius: 12px; overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer; transition: all 0.3s; position: relative;
@@ -241,10 +254,21 @@ body {
 .admin-card h3 { font-size: 1.1rem; font-weight: 700; color: var(--admin-text); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px; }
 .admin-card h3 i { color: var(--admin-accent); }
 
-.data-table { width: 100%; border-collapse: collapse; }
+/* ✅ DYNAMIC TABLE WRAPPER */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.data-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    min-width: 600px; /* Ensures table doesn't squish on mobile */
+}
 .data-table thead { background: #f8fafc; }
 .data-table th { text-align: left; padding: 12px 16px; color: var(--admin-text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid var(--admin-border); }
-.data-table td { padding: 12px 16px; border-bottom: 1px solid var(--admin-border); font-size: 0.9rem; color: var(--admin-text); }
+.data-table td { padding: 12px 16px; border-bottom: 1px solid var(--admin-border); font-size: 0.9rem; color: var(--admin-text); white-space: nowrap; }
 .data-table tbody tr:hover { background: #f8fafc; }
 .data-table tfoot { background: #f8fafc; font-weight: 700; }
 .data-table tfoot td { border-top: 2px solid var(--admin-border); border-bottom: none; padding: 14px 16px; }
@@ -277,7 +301,7 @@ body {
 .form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--admin-text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
 .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--admin-border); border-radius: 10px; font-size: 1rem; font-family: inherit; transition: all 0.2s; background: #fff; min-height: 44px; }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--admin-accent); box-shadow: 0 0 0 4px rgba(139, 0, 0, 0.1); }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 1rem; }
 
 .alert-msg { padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
 .alert-msg.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
@@ -302,7 +326,7 @@ body {
 .sidebar-overlay.active { display: block; }
 
 .inventory-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
-.search-container { position: relative; width: 300px; }
+.search-container { position: relative; width: 300px; max-width: 100%; }
 .search-container input { width: 100%; padding: 0.75rem 1rem 0.75rem 2.8rem; border: 2px solid var(--admin-border); border-radius: 50px; font-size: 0.9rem; outline: none; transition: all 0.3s; min-height: 44px; }
 .search-container input:focus { border-color: var(--admin-accent); box-shadow: 0 0 0 4px rgba(139, 0, 0, 0.1); }
 .search-container i { position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); color: var(--admin-text-muted); }
@@ -323,11 +347,10 @@ body {
 .preview-image { max-width: 100%; max-height: 300px; border-radius: 10px; margin-bottom: 1rem; display: block; margin-left: auto; margin-right: auto; }
 
 /* ============================================
-   MOBILE RESPONSIVE
+   DYNAMIC MOBILE RESPONSIVE
    ============================================ */
 @media (max-width: 1024px) {
     .dashboard-grid { grid-template-columns: 1fr; }
-    .form-row { grid-template-columns: 1fr; }
     .products-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
 
@@ -335,23 +358,33 @@ body {
     .sidebar {
         transform: translateX(-100%);
         width: 280px;
-        height: 100%; /* ✅ FIXED: Uses 100% instead of 100vh to avoid URL bar cutoff */
+        height: 100%;
         max-height: 100%;
     }
     .sidebar.active { transform: translateX(0); }
     .sidebar-close { display: flex; }
     .mobile-menu-toggle { display: flex; }
-    .main-content { margin-left: 0; padding: 1rem; padding-top: 5rem; }
+    
+    .main-content { 
+        margin-left: 0; 
+        padding: 1rem; 
+        padding-top: 5rem; 
+    }
+    
     .stats-grid { grid-template-columns: 1fr; gap: 1rem; }
     .stat-card { padding: 1rem; }
+    
     .products-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    
     .inventory-header { flex-direction: column; align-items: stretch; }
     .search-container { width: 100%; }
+    
     .admin-header { flex-direction: column; align-items: flex-start; }
     .admin-header h1 { font-size: 1.5rem; }
-    .data-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    
     .modal-content { width: 100%; margin: 0; border-radius: 16px 16px 0 0; max-height: 95vh; }
     .modal-body { padding: 1.5rem; }
+    
     .camera-section { padding: 1.5rem; }
     .camera-upload-area { padding: 1.5rem; }
 }
