@@ -35,10 +35,7 @@ $top_items_report = $con->query("
     <link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
-    <!-- ✅ BURGER MENU BUTTON -->
     <button class="mobile-menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
-
-    <!-- ✅ SIDEBAR OVERLAY -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <aside class="sidebar" id="sidebar">
@@ -49,6 +46,7 @@ $top_items_report = $con->query("
             <li class="nav-item"><a href="admin_orders.php" class="nav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a></li>
             <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-receipt"></i> Order Details</a></li>
             <li class="nav-item"><a href="admin_inventory.php" class="nav-link"><i class="fas fa-boxes-stacked"></i> Inventory</a></li>
+            <li class="nav-item"><a href="manage_users.php" class="nav-link"><i class="fas fa-users"></i> Manage Users</a></li>
             <li class="nav-item"><a href="admin_report.php" class="nav-link active"><i class="fas fa-chart-line"></i> Monthly Report</a></li>
         </ul>
         <div class="sidebar-footer">
@@ -72,8 +70,8 @@ $top_items_report = $con->query("
             <div class="admin-card">
                 <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-trophy" style="color:#8B0000;"></i> Top 5 Most Sold Items</h3>
                 <?php if ($top_items_report && $top_items_report->num_rows > 0): ?>
-                    <!-- ✅ NEGATIVE MARGIN TABLE WRAPPER -->
-                    <div class="table-responsive">
+                    <!-- ✅ USE table-scroll-wrapper HERE -->
+                    <div class="table-scroll-wrapper">
                         <table class="data-table">
                             <thead><tr><th>Rank</th><th>Item Name</th><th>Total Quantity Sold</th><th>Total Revenue</th></tr></thead>
                             <tbody>
@@ -98,8 +96,8 @@ $top_items_report = $con->query("
                 <?php if (empty($monthly_data)): ?>
                     <p style="text-align: center; color: #94a3b8; padding: 2rem;">No order data available yet.</p>
                 <?php else: ?>
-                    <!-- ✅ NEGATIVE MARGIN TABLE WRAPPER -->
-                    <div class="table-responsive">
+                    <!-- ✅ USE table-scroll-wrapper HERE -->
+                    <div class="table-scroll-wrapper">
                         <table class="data-table">
                             <thead><tr><th>Month / Year</th><th>Total Orders</th><th>Total Revenue</th></tr></thead>
                             <tbody>

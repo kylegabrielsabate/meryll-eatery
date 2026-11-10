@@ -57,10 +57,7 @@ $products = $con->query($sql);
     <link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
-    <!-- ✅ BURGER MENU BUTTON -->
     <button class="mobile-menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
-
-    <!-- ✅ SIDEBAR OVERLAY -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <aside class="sidebar" id="sidebar">
@@ -71,6 +68,7 @@ $products = $con->query($sql);
             <li class="nav-item"><a href="admin_orders.php" class="nav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a></li>
             <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-receipt"></i> Order Details</a></li>
             <li class="nav-item"><a href="admin_inventory.php" class="nav-link active"><i class="fas fa-boxes-stacked"></i> Inventory</a></li>
+            <li class="nav-item"><a href="manage_users.php" class="nav-link"><i class="fas fa-users"></i> Manage Users</a></li>
             <li class="nav-item"><a href="admin_report.php" class="nav-link"><i class="fas fa-chart-line"></i> Monthly Report</a></li>
         </ul>
         <div class="sidebar-footer">
@@ -94,8 +92,8 @@ $products = $con->query($sql);
             </div>
 
             <div class="admin-card" style="padding: 0;">
-                <!-- ✅ NEGATIVE MARGIN TABLE WRAPPER -->
-                <div class="table-responsive">
+                <!-- ✅ USE table-scroll-wrapper HERE -->
+                <div class="table-scroll-wrapper">
                     <table class="data-table" style="width: 100%; border-collapse: collapse;">
                         <thead><tr><th>ID</th><th>Product Name</th><th>Category</th><th>Unit</th><th>Price</th><th>Stock</th><th>Status</th><th style="text-align: center;">Actions</th></tr></thead>
                         <tbody>

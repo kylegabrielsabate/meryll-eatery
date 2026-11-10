@@ -1,5 +1,5 @@
 /* ============================================
-   KUYA BATAS ADMIN - BULLETPROOF TABLE SCROLL
+   KUYA BATAS ADMIN - NUCLEAR TABLE FIX + USERS
    ============================================ */
 
 :root {
@@ -55,6 +55,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--admin-bg)
 .stat-icon.red { background: #fef2f2; color: #ef4444; }
 .stat-icon.green { background: #f0fdf4; color: #10b981; }
 .stat-icon.blue { background: #eff6ff; color: #3b82f6; }
+.stat-icon.coral { background: #fff7ed; color: #f97316; }
 .stat-info h3 { font-size: 0.85rem; color: var(--admin-text-muted); font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
 .stat-info p { font-size: clamp(1.2rem, 3vw, 1.5rem); font-weight: 800; color: var(--admin-text); margin: 0.3rem 0 0 0; }
 .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 1.5rem; margin-top: 2rem; }
@@ -79,31 +80,25 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--admin-bg)
 .camera-btn:hover { background: var(--admin-accent-hover); }
 #cameraInput { display: none; }
 
-.admin-card { 
-    background: var(--admin-card); 
-    border-radius: 16px; 
-    padding: 1.5rem; 
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); 
-    margin-bottom: 1.5rem; 
-    /* ✅ DEFAULT OVERFLOW HIDDEN FOR ROUNDED CORNERS */
-    overflow: hidden; 
-}
+.admin-card { background: var(--admin-card); border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 1.5rem; overflow: hidden; }
 .admin-card h3 { font-size: 1.1rem; font-weight: 700; color: var(--admin-text); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px; }
 .admin-card h3 i { color: var(--admin-accent); }
 
-/* ✅ NUCLEAR OPTION: FORCE TABLE SCROLLING */
-.table-responsive {
-    width: 100%;
+/* ✅ NUCLEAR TABLE SCROLL FIX */
+.table-scroll-wrapper {
+    position: relative;
+    width: calc(100% + 3rem);
+    margin-left: -1.5rem;
+    margin-right: -1.5rem;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
-    margin: -1.5rem !important; /* Pulls table out of card padding */
-    padding: 1.5rem !important; /* Restores visual spacing */
+    padding: 0 1.5rem;
 }
 
 .data-table { 
     width: 100%; 
     border-collapse: collapse; 
-    min-width: 700px !important; /* Forces horizontal scroll on mobile */
+    min-width: 700px !important;
 }
 .data-table th, .data-table td { white-space: nowrap !important; padding: 12px 16px; }
 .data-table thead { background: #f8fafc; }
@@ -177,6 +172,12 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--admin-bg)
 .filter-tab.active { background: var(--admin-accent); color: #fff; border-color: var(--admin-accent); }
 .preview-image { max-width: 100%; max-height: 300px; border-radius: 10px; margin-bottom: 1rem; display: block; margin-left: auto; margin-right: auto; }
 
+/* USER TYPE BADGES */
+.user-type-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; display: inline-block; }
+.user-type-student { background: #dbeafe; color: #1e40af; }
+.user-type-instructor { background: #fef3c7; color: #92400e; }
+.user-type-admin { background: #fee2e2; color: #991b1b; }
+
 /* DYNAMIC MOBILE RESPONSIVE */
 @media (max-width: 1024px) {
     .dashboard-grid { grid-template-columns: 1fr; }
@@ -203,7 +204,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--admin-bg)
     
     /* ✅ ENSURE TABLES SCROLL ON MOBILE */
     .admin-card { overflow: visible !important; }
-    .table-responsive { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+    .table-scroll-wrapper { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
     .data-table { min-width: 700px !important; }
 }
 
