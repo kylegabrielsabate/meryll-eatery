@@ -54,7 +54,7 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
                 <div><h1>Order Management</h1><p style="color: var(--admin-text-muted, #64748b);">View, update, and track all customer orders.</p></div>
             </div>
 
-            <div class="admin-card" style="padding: 0; overflow: hidden;">
+            <div class="admin-card" style="padding: 0;">
                 <!-- ✅ TABLE WRAPPED IN SCROLLABLE DIV -->
                 <div class="table-responsive">
                     <table class="data-table" style="width: 100%; border-collapse: collapse;">
