@@ -14,13 +14,29 @@ $admin_id = $_SESSION['user_id'];
 $stmt = $con->prepare("SELECT COUNT(*) as count FROM notifications WHERE admin_id = ? AND is_read = 0");
 $stmt->bind_param("i", $admin_id);
 $stmt->execute();
-$unread_count = $stmt->get_result()->fetch_assoc()['count'];
+$unread_count = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
 
 // Fetch recent notifications
 $stmt = $con->prepare("SELECT * FROM notifications WHERE admin_id = ? ORDER BY created_at DESC LIMIT 10");
 $stmt->bind_param("i", $admin_id);
 $stmt->execute();
 $recent_notifs = $stmt->get_result();
+
+// ✅ FETCH REAL STATS FROM DATABASE
+// 1. Pending Orders
+$stmt = $con->prepare("SELECT COUNT(*) as count FROM orders WHERE status = 'Pending'");
+$stmt->execute();
+$pending_count = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+
+// 2. Completed Today
+$stmt = $con->prepare("SELECT COUNT(*) as count FROM orders WHERE status = 'Completed' AND DATE(created_at) = CURDATE()");
+$stmt->execute();
+$completed_count = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+
+// 3. Total Revenue (All completed orders)
+$stmt = $con->prepare("SELECT SUM(total_amount) as total FROM orders WHERE status = 'Completed'");
+$stmt->execute();
+$total_revenue = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -277,7 +293,7 @@ $recent_notifs = $stmt->get_result();
             </div>
         </div>
 
-        <!-- Stats Grid -->
+        <!-- ✅ Stats Grid with REAL DATABASE DATA -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon red">
@@ -285,7 +301,7 @@ $recent_notifs = $stmt->get_result();
                 </div>
                 <div class="stat-info">
                     <h3>Pending Orders</h3>
-                    <p class="stat-number">0</p>
+                    <p class="stat-number"><?= $pending_count ?></p>
                 </div>
             </div>
             <div class="stat-card">
@@ -294,7 +310,7 @@ $recent_notifs = $stmt->get_result();
                 </div>
                 <div class="stat-info">
                     <h3>Completed Today</h3>
-                    <p class="stat-number">0</p>
+                    <p class="stat-number"><?= $completed_count ?></p>
                 </div>
             </div>
             <div class="stat-card">
@@ -303,7 +319,7 @@ $recent_notifs = $stmt->get_result();
                 </div>
                 <div class="stat-info">
                     <h3>Total Revenue</h3>
-                    <p class="stat-number">₱0.00</p>
+                    <p class="stat-number">₱<?= number_format($total_revenue, 2) ?></p>
                 </div>
             </div>
         </div>
@@ -330,12 +346,11 @@ document.addEventListener('click', function(e) {
 });
 
 function viewNotif(id) {
-    window.location.href = 'get_order_details.php?notif_id=' + id;
+    window.location.href = 'get_order_details.php?id=' + id;
 }
 
 // ✅ PLAY NOTIFICATION SOUND
 function playNotificationSound() {
-    // Create audio context for better sound
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
@@ -343,7 +358,6 @@ function playNotificationSound() {
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
     
-    // Play a pleasant ding sound
     oscillator.frequency.value = 523.25; // C5 note
     oscillator.type = 'sine';
     
@@ -353,7 +367,6 @@ function playNotificationSound() {
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.5);
     
-    // Play second tone for double beep
     setTimeout(() => {
         const osc2 = audioContext.createOscillator();
         const gain2 = audioContext.createGain();
@@ -371,7 +384,6 @@ function playNotificationSound() {
 // ✅ VIBRATE DEVICE (for mobile)
 function vibrateDevice() {
     if ('vibrate' in navigator) {
-        // Vibrate pattern: 200ms on, 100ms off, 200ms on
         navigator.vibrate([200, 100, 200]);
     }
 }
@@ -388,11 +400,9 @@ function showLargeAlert(orderData) {
     const modal = document.getElementById('orderAlertModal');
     modal.classList.add('show');
     
-    // Play sound and vibrate
     playNotificationSound();
     vibrateDevice();
     
-    // Auto-dismiss after 15 seconds if not clicked (stores in bell)
     setTimeout(() => {
         if (modal.classList.contains('show')) {
             dismissAlert();
@@ -403,34 +413,26 @@ function showLargeAlert(orderData) {
 // View order from alert
 function viewOrderFromAlert() {
     if (currentOrderId) {
-        window.location.href = 'get_order_details.php?order_id=' + currentOrderId;
+        window.location.href = 'get_order_details.php?id=' + currentOrderId;
     }
 }
 
-// Dismiss alert (saves to notification bell)
+// Dismiss alert
 function dismissAlert() {
     document.getElementById('orderAlertModal').classList.remove('show');
-    
-    // Mark as acknowledged but still save to notifications
-    if (currentOrderId) {
-        // The notification is already saved in database by checkout process
-        // Just close the modal
-        currentOrderId = null;
-    }
+    currentOrderId = null;
 }
 
-// ✅ REAL-TIME ORDER CHECKING (Every 5 seconds for true real-time)
+// ✅ REAL-TIME ORDER CHECKING (Every 5 seconds)
 function checkNewOrders() {
     fetch('check_new_orders.php')
         .then(r => r.json())
         .then(data => {
             if (data.has_new_order) {
-                // Check if this is a new order we haven't shown yet
                 if (data.order_id !== lastCheckedOrder) {
                     lastCheckedOrder = data.order_id;
                     showLargeAlert(data);
                     
-                    // Update notification badge
                     fetch('update_notification_count.php')
                         .then(r => r.json())
                         .then(countData => {
@@ -448,10 +450,7 @@ function checkNewOrders() {
         .catch(err => console.log('Polling error:', err));
 }
 
-// Check every 5 seconds for TRUE real-time
 setInterval(checkNewOrders, 5000);
-
-// Check immediately on page load
 checkNewOrders();
 </script>
 
