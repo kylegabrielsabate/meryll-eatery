@@ -4,7 +4,7 @@ include '../connect.php';
 
 $error = '';
 
-// ✅ 1. AUTO-LOGIN CHECK: If session is empty but cookie exists, log them in automatically
+// ✅ AUTO-LOGIN CHECK: If session is empty but cookie exists, log them in automatically
 if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_me'])) {
     $cookie_input = $_COOKIE['remember_me'];
     $stmt = $con->prepare("SELECT user_id, username, role FROM users WHERE username = ? OR email = ? OR student_id = ? LIMIT 1");
@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($login_input) || empty($password)) {
         $error = 'Please enter your credentials.';
     } else {
+        // ✅ Accepts: Username, Email, Student ID (E24-00123), or Instructor ID (TAG-123)
         $stmt = $con->prepare("SELECT user_id, username, password, role FROM users WHERE username = ? OR email = ? OR student_id = ? LIMIT 1");
         $stmt->bind_param("sss", $login_input, $login_input, $login_input);
         $stmt->execute();
@@ -46,19 +47,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'];
 
-                // ✅ 2. HANDLE "REMEMBER ME" COOKIE
+                // ✅ HANDLE "REMEMBER ME" COOKIE
                 if (isset($_POST['remember'])) {
-                    // Save cookie for 30 days
                     setcookie('remember_me', $login_input, time() + (86400 * 30), "/");
                 } else {
-                    // Delete cookie if unchecked
                     if (isset($_COOKIE['remember_me'])) {
                         setcookie('remember_me', "", time() - 3600, "/");
                     }
                 }
 
                 if ($user['role'] === 'admin') {
-                     header('Location: ../admin/admin.php');
+                    header('Location: ../admin/admin.php');
                 } else {
                     header('Location: index.php');
                 }
@@ -127,7 +126,6 @@ body {
 }
 .form-group input:focus { border-color: #8B0000; box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1); }
 
-/* ✅ Eye Icon Styles */
 .toggle-password {
     position: absolute;
     right: 15px;
@@ -143,7 +141,6 @@ body {
 }
 .toggle-password:hover { color: #8B0000; }
 
-/* ✅ Remember Me Checkbox Styles */
 .remember-container {
     display: flex;
     align-items: center;
@@ -180,6 +177,16 @@ body {
 .signup-text { color: #555; font-weight: 500; }
 .signup-link { color: #8B0000; text-decoration: none; font-weight: 700; margin-left: 4px; }
 .signup-link:hover { text-decoration: underline; color: #6d0000; }
+
+.id-examples {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+.id-examples strong { color: #8B0000; }
 </style>
 </head>
 <body>
@@ -196,7 +203,13 @@ body {
     <form method="POST">
         <div class="form-group">
             <label><i class="bi bi-person"></i> Username, Email, or ID</label>
-            <input type="text" name="login_input" value="<?= $saved_login ?>" required placeholder="e.g. john_doe, email@school.edu, or E24-00123">
+            <input type="text" name="login_input" value="<?= $saved_login ?>" required placeholder="e.g., john_doe, TAG-123, or E24-00123">
+            <div class="id-examples">
+                <strong>Examples:</strong><br>
+                • Instructor ID: <strong>TAG-123</strong><br>
+                • Student ID: <strong>E24-00123</strong><br>
+                • Username or Email
+            </div>
         </div>
         
         <div class="form-group">
@@ -207,7 +220,6 @@ body {
             </button>
         </div>
 
-        <!-- ✅ Remember Me Checkbox -->
         <div class="remember-container">
             <input type="checkbox" id="remember" name="remember" <?= $is_remembered ?>>
             <label for="remember">Remember me for 30 days</label>
