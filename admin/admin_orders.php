@@ -32,21 +32,22 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
         <ul class="nav-menu">
             <li class="nav-item"><a href="admin.php" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
             <li class="nav-item"><a href="admin_orders.php" class="nav-link active"><i class="fas fa-clipboard-list"></i> Manage Orders</a></li>
+            <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-file-invoice"></i> Order Details</a></li>
             <li class="nav-item"><a href="admin_inventory.php" class="nav-link"><i class="fas fa-boxes-stacked"></i> Inventory</a></li>
             <li class="nav-item"><a href="admin_report.php" class="nav-link"><i class="fas fa-chart-line"></i> Monthly Report</a></li>
         </ul>
         <div class="sidebar-footer">
             <a href="admin.php" class="nav-link"><i class="fas fa-user-shield"></i> <?php echo htmlspecialchars($_SESSION['username']); ?></a>
-            <a href="../user/logout.php" class="nav-link" style="color: var(--soft-coral, #ff6b6b);"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </aside>
 
     <main class="main-content">
         <div class="admin-container" style="max-width: 1200px; margin: 0 auto;">
-            <?php if ($msg): ?><div class="alert-msg"><i class="fas fa-check-circle"></i> <?php echo $msg; ?></div><?php endif; ?>
+            <?php if ($msg): ?><div class="alert-msg success"><i class="fas fa-check-circle"></i> <?php echo $msg; ?></div><?php endif; ?>
             
             <div class="admin-header">
-                <div><h1>Order Management</h1><p style="color: var(--text-muted, #6c757d);">View, update, and track all customer orders.</p></div>
+                <div><h1>Order Management</h1><p style="color: var(--admin-text-muted, #64748b);">View, update, and track all customer orders.</p></div>
             </div>
 
             <div class="admin-card" style="padding: 0; overflow: hidden;">
@@ -65,12 +66,15 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
                                     <td style="font-weight: 700;">₱<?php echo number_format($row['total_amount'], 2); ?></td>
                                     <td><span class="status-badge status-<?php echo $statusClass; ?>"><?php echo htmlspecialchars($row['status']); ?></span></td>
                                     <td>
-                                        <button class="btn-view" onclick="openDetails(<?php echo $row['order_id']; ?>)"><i class="fas fa-eye"></i> Details</button>
+                                        <!-- ✅ CHANGED TO DIRECT LINK (No more modal) -->
+                                        <a href="get_order_details.php?id=<?php echo $row['order_id']; ?>" class="btn-view" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
+                                            <i class="fas fa-eye"></i> Details
+                                        </a>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted, #6c757d);">No orders found.</td></tr>
+                            <tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--admin-text-muted, #64748b);">No orders found.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -78,29 +82,12 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
         </div>
     </main>
 
-    <!-- Order Details Modal -->
-    <div class="modal-overlay" id="detailsModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:2000;display:none;align-items:center;justify-content:center;">
-        <div class="modal-content" style="background:white;width:600px;max-width:90%;border-radius:16px;overflow:hidden;max-height:90vh;overflow-y:auto;">
-            <div class="modal-header" style="padding:1.5rem;background:var(--brand-red,#8B0000);color:white;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="margin:0;">Order Details</h3>
-                <button onclick="closeDetails()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>
-            </div>
-            <div id="modalBody" style="padding:2rem;"></div>
-        </div>
-    </div>
-
     <script>
-        function closeSidebar() { document.getElementById('sidebar').classList.remove('active'); document.getElementById('sidebarOverlay').classList.remove('active'); document.body.style.overflow = ''; }
-        
-        function openDetails(orderId) {
-            fetch('get_order_details.php?id=' + orderId)
-                .then(res => res.text())
-                .then(html => {
-                    document.getElementById('modalBody').innerHTML = html;
-                    document.getElementById('detailsModal').style.display = 'flex';
-                });
+        function closeSidebar() { 
+            document.getElementById('sidebar').classList.remove('active'); 
+            document.getElementById('sidebarOverlay').classList.remove('active'); 
+            document.body.style.overflow = ''; 
         }
-        function closeDetails() { document.getElementById('detailsModal').style.display = 'none'; }
     </script>
 </body>
 </html>

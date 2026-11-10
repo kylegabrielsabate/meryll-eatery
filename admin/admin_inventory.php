@@ -3,7 +3,6 @@ session_start();
 include '../connect.php';
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') { header("Location: ../user/login.php"); exit; }
 
-// --- KUYA BATAS CATEGORIES ---
 $categories = [
     1 => 'Ulam', 2 => 'Meryenda', 3 => 'Breakfast', 4 => 'Coffee', 
     5 => 'Drinks', 6 => 'Snacks', 7 => 'Candies', 8 => 'Noodles', 
@@ -36,7 +35,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'delete') {
         $id = (int)$_POST['productID'];
-        // Delete from order_items first to avoid foreign key constraint
         $con->query("DELETE FROM order_items WHERE productID = $id"); 
         $stmt = $con->prepare("DELETE FROM products WHERE productID = ?");
         $stmt->bind_param("i", $id);
@@ -57,7 +55,6 @@ $products = $con->query($sql);
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="admin_style.css">
-
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
@@ -67,12 +64,13 @@ $products = $con->query($sql);
         <ul class="nav-menu">
             <li class="nav-item"><a href="admin.php" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
             <li class="nav-item"><a href="admin_orders.php" class="nav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a></li>
+            <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-file-invoice"></i> Order Details</a></li>
             <li class="nav-item"><a href="admin_inventory.php" class="nav-link active"><i class="fas fa-boxes-stacked"></i> Inventory</a></li>
             <li class="nav-item"><a href="admin_report.php" class="nav-link"><i class="fas fa-chart-line"></i> Monthly Report</a></li>
         </ul>
         <div class="sidebar-footer">
             <a href="admin.php" class="nav-link"><i class="fas fa-user-shield"></i> <?php echo htmlspecialchars($_SESSION['username']); ?></a>
-            <a href="../user/logout.php" class="nav-link" style="color: var(--soft-coral, #ff6b6b);"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </aside>
 
@@ -81,7 +79,7 @@ $products = $con->query($sql);
             <?php if ($message): ?><div class="alert-msg <?php echo $msg_type; ?>"><i class="fas fa-<?php echo $msg_type === 'success' ? 'check-circle' : 'exclamation-circle'; ?>"></i> <?php echo $message; ?></div><?php endif; ?>
             
             <div class="inventory-header">
-                <div><h1 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.3rem;">Inventory Management</h1><p style="color: var(--text-muted, #6c757d);">Add, update, and track your canteen stock levels.</p></div>
+                <div><h1 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.3rem;">Inventory Management</h1><p style="color: var(--admin-text-muted, #64748b);">Add, update, and track your canteen stock levels.</p></div>
                 <div style="display: flex; gap: 1rem; align-items: center;">
                     <form method="GET" class="search-container" style="width: 250px;">
                         <i class="fas fa-search"></i><input type="text" name="search" placeholder="Search products..." value="<?php echo htmlspecialchars($search); ?>">
@@ -106,7 +104,7 @@ $products = $con->query($sql);
                                         <td style="font-weight: 700;">#<?php echo $row['productID']; ?></td>
                                         <td style="font-weight: 600;"><?php echo htmlspecialchars($row['productname']); ?></td>
                                         <td><?php echo $categories[$row['categoryID']] ?? 'Other'; ?></td>
-                                        <td style="color: var(--text-muted, #6c757d); font-size: 0.85rem;"><?php echo htmlspecialchars($row['unit']); ?></td>
+                                        <td style="color: var(--admin-text-muted, #64748b); font-size: 0.85rem;"><?php echo htmlspecialchars($row['unit']); ?></td>
                                         <td style="font-weight: 700;">₱<?php echo number_format($row['price'], 2); ?></td>
                                         <td style="font-weight: 700;"><?php echo $stock; ?></td>
                                         <td><?php echo $badge; ?></td>
@@ -120,7 +118,7 @@ $products = $con->query($sql);
                                     </tr>
                                 <?php endwhile; ?>
                             <?php else: ?>
-                                <tr><td colspan="8" style="text-align: center; padding: 3rem; color: var(--text-muted, #6c757d);">No products found.</td></tr>
+                                <tr><td colspan="8" style="text-align: center; padding: 3rem; color: var(--admin-text-muted, #64748b);">No products found.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -147,7 +145,7 @@ $products = $con->query($sql);
                         <div class="form-group"><label>Stock Quantity</label><input type="number" name="stock" id="inputStock" required></div>
                     </div>
                     <div class="form-group"><label>Image Filename (e.g., adobo.jpg)</label><input type="text" name="productImage" id="inputImage" placeholder="Leave blank if none"></div>
-                    <button type="submit" class="btn-submit" id="submitBtn">Add Product</button>
+                    <button type="submit" class="btn-submit" id="submitBtn" style="width:100%;padding:0.85rem;background:#8B0000;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Add Product</button>
                 </form>
             </div>
         </div>
