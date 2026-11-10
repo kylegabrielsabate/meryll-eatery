@@ -35,7 +35,7 @@ $stmt = $con->prepare("SELECT SUM(total_amount) as total FROM orders WHERE statu
 $stmt->execute();
 $total_revenue = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
 
-// Fetch ALL products for dashboard grid (including hidden ones)
+// Fetch ALL products for dashboard grid
 $products = $con->query("SELECT * FROM products ORDER BY FIELD(categoryID, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), productID DESC");
 
 // Handle Quick Product Update
@@ -45,7 +45,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quick_update'])) {
     $price = (float)$_POST['price'];
     $stock = (int)$_POST['stock'];
     
-    // Handle image upload
     $image_path = '';
     if (isset($_FILES['product_image']) && $_FILES['product_image']['error'] === 0) {
         $upload_dir = '../images/products/';
@@ -88,6 +87,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_visibility']))
     }
 }
 
+// Handle New Product from Camera
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_new_product'])) {
+    $product_name = $con->real_escape_string(trim($_POST['product_name']));
+    $category_id = (int)$_POST['category_id'];
+    $price = (float)$_POST['price'];
+    $stock = (int)$_POST['stock'];
+    $unit = $con->real_escape_string(trim($_POST['unit']));
+    
+    $image_path = '';
+    if (isset($_SESSION['camera_image_temp'])) {
+        $upload_dir = '../images/products/';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
+        
+        $file_ext = strtolower(pathinfo($_SESSION['camera_image_temp'], PATHINFO_EXTENSION));
+        $new_filename = uniqid() . '.' . $file_ext;
+        $upload_path = $upload_dir . $new_filename;
+        
+        if (rename($_SESSION['camera_image_temp'], $upload_path)) {
+            $image_path = $new_filename;
+        }
+        unset($_SESSION['camera_image_temp']);
+    }
+    
+    $stmt = $con->prepare("INSERT INTO products (productname, categoryID, unit, price, stock, productImage, is_available, is_visible) VALUES (?, ?, ?, ?, ?, ?, 1, 1)");
+    $stmt->bind_param("sisdis", $product_name, $category_id, $unit, $price, $stock, $image_path);
+    
+    if ($stmt->execute()) {
+        $success_msg = "Product added successfully!";
+    } else {
+        $error_msg = "Error adding product.";
+    }
+}
+
 // Category names
 $categories = [
     1 => 'Ulam', 2 => 'Meryenda', 3 => 'Breakfast', 4 => 'Coffee', 
@@ -105,7 +139,6 @@ $categories = [
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="admin_style.css">
 <style>
-/* Additional styles for visibility toggle */
 .visibility-toggle {
     position: absolute;
     top: 10px;
@@ -121,20 +154,10 @@ $categories = [
     align-items: center;
     gap: 5px;
     z-index: 10;
-    transition: all 0.3s;
 }
 
-.visibility-toggle:hover {
-    background: rgba(0,0,0,0.9);
-}
-
-.visibility-toggle.active {
-    background: #10b981;
-}
-
-.visibility-toggle.inactive {
-    background: #ef4444;
-}
+.visibility-toggle.active { background: #10b981; }
+.visibility-toggle.inactive { background: #ef4444; }
 
 .product-card.hidden {
     opacity: 0.6;
@@ -177,19 +200,23 @@ $categories = [
     border-color: var(--admin-accent);
 }
 
-.filter-tab:hover {
-    border-color: var(--admin-accent);
+.preview-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
 </style>
 </head>
 <body>
 
-<!-- Mobile Menu Toggle -->
 <button class="mobile-menu-toggle" onclick="toggleSidebar()">
     <i class="fas fa-bars"></i>
 </button>
 
-<!-- ✅ IDENTICAL SIDEBAR START -->
 <aside class="sidebar" id="sidebar">
     <button class="sidebar-close" onclick="toggleSidebar()"><i class="fas fa-arrow-left"></i></button>
     <a href="admin.php" class="logo">
@@ -207,7 +234,6 @@ $categories = [
         <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
 </aside>
-<!-- ✅ IDENTICAL SIDEBAR END -->
 
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
@@ -236,7 +262,7 @@ $categories = [
                 <p><strong>Tap to take a photo</strong> or upload from gallery</p>
                 <button class="camera-btn"><i class="fas fa-plus"></i> Add Product</button>
             </div>
-            <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleCameraUpload(this)">
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleCameraUpload(this)" style="display:none;">
         </div>
 
         <!-- Filter Tabs -->
@@ -247,7 +273,7 @@ $categories = [
             <button class="filter-tab" onclick="filterProducts('ulam')">Ulam Only</button>
         </div>
 
-        <!-- Stats Grid with REAL DATABASE DATA -->
+        <!-- Stats Grid -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon red"><i class="fas fa-receipt"></i></div>
@@ -272,7 +298,7 @@ $categories = [
             </div>
         </div>
 
-        <!-- Products Grid - ALL PRODUCTS -->
+        <!-- Products Grid -->
         <div class="admin-card">
             <h3><i class="fas fa-th-large" style="color:#8B0000;"></i> All Products (<?php echo $products->num_rows; ?>)</h3>
             <p style="color:#64748b;margin-bottom:1rem;">Click any product to edit. Use the eye icon to show/hide Ulams from the menu.</p>
@@ -284,11 +310,9 @@ $categories = [
                         $category_name = $categories[$prod['categoryID']] ?? 'Other';
                         $is_ulam = ($prod['categoryID'] == 1);
                         
-                        // ✅ FIXED IMAGE PATH
                         $image_src = '';
                         if (!empty($prod['productImage'])) {
                             $image_src = '../images/products/' . $prod['productImage'];
-                            // Check if file exists
                             if (!file_exists(__DIR__ . '/../images/products/' . $prod['productImage'])) {
                                 $image_src = 'https://via.placeholder.com/200x160/8B0000/ffffff?text=' . urlencode($prod['productname']);
                             }
@@ -301,7 +325,6 @@ $categories = [
                              data-visible="<?= $is_visible ?>"
                              onclick="openQuickEdit(<?= htmlspecialchars(json_encode($prod)) ?>)">
                             
-                            <!-- Visibility Toggle (Only for Ulams) -->
                             <?php if ($is_ulam): ?>
                                 <form method="POST" style="position:absolute;top:10px;left:10px;z-index:20;" onclick="event.stopPropagation();">
                                     <input type="hidden" name="toggle_visibility" value="1">
@@ -314,7 +337,6 @@ $categories = [
                                 </form>
                             <?php endif; ?>
                             
-                            <!-- Category Badge -->
                             <span class="category-badge"><?= $category_name ?></span>
                             
                             <img src="<?= $image_src ?>" 
@@ -353,7 +375,6 @@ $categories = [
                 <div class="form-group">
                     <label>Product Image</label>
                     <input type="file" name="product_image" accept="image/*" capture="environment" style="padding:0.5rem;">
-                    <small style="color:#64748b;">Leave empty to keep current image</small>
                 </div>
                 
                 <div class="form-group">
@@ -380,7 +401,60 @@ $categories = [
     </div>
 </div>
 
+<!-- ✅ NEW PRODUCT FROM CAMERA MODAL -->
+<div class="modal-overlay" id="cameraModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-camera"></i> Add New Product</h3>
+            <button class="modal-close" onclick="closeCameraModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <img id="cameraPreview" class="preview-image" alt="Captured image">
+            
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="add_new_product" value="1">
+                
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" name="product_name" required placeholder="e.g., Chicken Adobo">
+                </div>
+                
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="category_id" required>
+                        <?php foreach($categories as $id => $name): ?>
+                            <option value="<?= $id ?>"><?= $name ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Price (₱)</label>
+                        <input type="number" step="0.01" name="price" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Stock</label>
+                        <input type="number" name="stock" required placeholder="0">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Unit</label>
+                    <input type="text" name="unit" placeholder="e.g., 1 serving, 1 pc" value="1 serving">
+                </div>
+                
+                <button type="submit" class="btn-primary" style="width:100%;margin-top:1rem;">
+                    <i class="fas fa-plus"></i> Add Product
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+let cameraFile = null;
+
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('active');
     document.getElementById('sidebarOverlay').classList.toggle('active');
@@ -389,13 +463,21 @@ function toggleSidebar() {
 
 function handleCameraUpload(input) {
     if (input.files && input.files[0]) {
-        const file = input.files[0];
-        // Redirect to inventory to add product details
-        const formData = new FormData();
-        formData.append('camera_file', file);
-        sessionStorage.setItem('cameraUpload', 'true');
-        window.location.href = 'admin_inventory.php?camera_upload=1';
+        cameraFile = input.files[0];
+        
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('cameraPreview').src = e.target.result;
+            document.getElementById('cameraModal').classList.add('active');
+        };
+        reader.readAsDataURL(cameraFile);
     }
+}
+
+function closeCameraModal() {
+    document.getElementById('cameraModal').classList.remove('active');
+    cameraFile = null;
 }
 
 function openQuickEdit(product) {
@@ -410,9 +492,7 @@ function closeQuickEdit() {
     document.getElementById('quickEditModal').classList.remove('active');
 }
 
-// Filter products
 function filterProducts(filter) {
-    // Update active tab
     document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
     event.target.classList.add('active');
     
@@ -434,9 +514,12 @@ function filterProducts(filter) {
     });
 }
 
-// Close modal when clicking outside
 document.getElementById('quickEditModal').addEventListener('click', function(e) {
     if (e.target === this) closeQuickEdit();
+});
+
+document.getElementById('cameraModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCameraModal();
 });
 </script>
 
