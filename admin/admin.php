@@ -2,7 +2,6 @@
 session_start();
 include '../connect.php';
 
-// ✅ ROLE-BASED SECURITY
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../user/login.php');
     exit();
@@ -17,7 +16,7 @@ $stmt->bind_param("i", $admin_id);
 $stmt->execute();
 $unread_count = $stmt->get_result()->fetch_assoc()['count'];
 
-// Fetch recent notifications for dropdown
+// Fetch recent notifications
 $stmt = $con->prepare("SELECT * FROM notifications WHERE admin_id = ? ORDER BY created_at DESC LIMIT 10");
 $stmt->bind_param("i", $admin_id);
 $stmt->execute();
@@ -32,16 +31,153 @@ $recent_notifs = $stmt->get_result();
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="admin_style.css">
+<style>
+/* Large Centered Notification Modal */
+.order-alert-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(5px);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+.order-alert-modal.show {
+    display: flex;
+}
+.order-alert-content {
+    background: #fff;
+    border-radius: 20px;
+    padding: 3rem;
+    max-width: 600px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+    animation: slideUp 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+    border: 4px solid #8B0000;
+}
+.order-alert-icon {
+    width: 100px;
+    height: 100px;
+    background: #fef2f2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 3rem;
+    color: #8B0000;
+    animation: bounce 1s infinite;
+}
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+.order-alert-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 1rem;
+}
+.order-alert-message {
+    font-size: 1.2rem;
+    color: #64748b;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+.order-alert-details {
+    background: #f8fafc;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    text-align: left;
+}
+.order-alert-details p {
+    margin: 0.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 1rem;
+}
+.order-alert-details strong {
+    color: #0f172a;
+}
+.order-alert-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+.btn-view-order {
+    background: #8B0000;
+    color: #fff;
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.btn-view-order:hover {
+    background: #6d0000;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(139, 0, 0, 0.3);
+}
+.btn-dismiss {
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.btn-dismiss:hover {
+    background: #e2e8f0;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes slideUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+</style>
 </head>
 <body>
 
-<!-- ✅ REAL-TIME POPUP NOTIFICATION -->
-<div class="notif-popup" id="notifPopup">
-    <div class="notif-popup-header">
-        <i class="bi bi-bell-fill notif-popup-icon"></i>
-        <span class="notif-popup-title">New Order Received!</span>
+<!-- ✅ LARGE CENTERED NOTIFICATION MODAL -->
+<div class="order-alert-modal" id="orderAlertModal">
+    <div class="order-alert-content">
+        <div class="order-alert-icon">
+            <i class="bi bi-bell-fill"></i>
+        </div>
+        <h2 class="order-alert-title">🔔 New Order Received!</h2>
+        <p class="order-alert-message" id="alertMessage">A customer has placed a new order online.</p>
+        
+        <div class="order-alert-details">
+            <p><strong>Order #:</strong> <span id="alertOrderNum">-</span></p>
+            <p><strong>Customer:</strong> <span id="alertCustomer">-</span></p>
+            <p><strong>Total Amount:</strong> <span id="alertAmount" style="color:#8B0000;font-size:1.2rem;font-weight:700">₱0.00</span></p>
+            <p><strong>Time:</strong> <span id="alertTime">-</span></p>
+        </div>
+        
+        <div class="order-alert-actions">
+            <button class="btn-view-order" onclick="viewOrderFromAlert()">
+                <i class="bi bi-eye"></i> View Order
+            </button>
+            <button class="btn-dismiss" onclick="dismissAlert()">
+                <i class="bi bi-x-circle"></i> Dismiss
+            </button>
+        </div>
     </div>
-    <div class="notif-popup-msg" id="notifPopupMsg">Checking for new orders...</div>
 </div>
 
 <!-- Sidebar -->
@@ -141,16 +277,6 @@ $recent_notifs = $stmt->get_result();
             </div>
         </div>
 
-        <div class="welcome-card" style="background:#fff;padding:2rem;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);margin-bottom:2rem;display:flex;justify-content:space-between;align-items:center">
-            <div class="welcome-text">
-                <h2 style="font-size:1.5rem;margin-bottom:0.5rem">Welcome back, <?= htmlspecialchars($admin_name) ?>! 👋</h2>
-                <p style="color:#64748b">Here is an overview of your store today. New online orders will pop up here in real-time.</p>
-            </div>
-            <div class="welcome-icon" style="font-size:4rem;color:#fef2f2">
-                <i class="bi bi-shop"></i>
-            </div>
-        </div>
-
         <!-- Stats Grid -->
         <div class="stats-grid">
             <div class="stat-card">
@@ -185,6 +311,9 @@ $recent_notifs = $stmt->get_result();
 </main>
 
 <script>
+let currentOrderId = null;
+let lastCheckedOrder = null;
+
 // Toggle dropdown
 function toggleNotifDropdown(e) {
     e.stopPropagation();
@@ -204,30 +333,125 @@ function viewNotif(id) {
     window.location.href = 'get_order_details.php?notif_id=' + id;
 }
 
-// ✅ REAL-TIME POPUP CHECK (Polls every 30 seconds)
+// ✅ PLAY NOTIFICATION SOUND
+function playNotificationSound() {
+    // Create audio context for better sound
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Play a pleasant ding sound
+    oscillator.frequency.value = 523.25; // C5 note
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
+    
+    // Play second tone for double beep
+    setTimeout(() => {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.frequency.value = 783.99; // G5 note
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        osc2.start(audioContext.currentTime);
+        osc2.stop(audioContext.currentTime + 0.5);
+    }, 200);
+}
+
+// ✅ VIBRATE DEVICE (for mobile)
+function vibrateDevice() {
+    if ('vibrate' in navigator) {
+        // Vibrate pattern: 200ms on, 100ms off, 200ms on
+        navigator.vibrate([200, 100, 200]);
+    }
+}
+
+// ✅ SHOW LARGE CENTERED ALERT
+function showLargeAlert(orderData) {
+    currentOrderId = orderData.order_id;
+    
+    document.getElementById('alertOrderNum').textContent = orderData.order_number;
+    document.getElementById('alertCustomer').textContent = orderData.customer_name || 'Online Customer';
+    document.getElementById('alertAmount').textContent = '₱' + parseFloat(orderData.total_amount).toFixed(2);
+    document.getElementById('alertTime').textContent = new Date().toLocaleString();
+    
+    const modal = document.getElementById('orderAlertModal');
+    modal.classList.add('show');
+    
+    // Play sound and vibrate
+    playNotificationSound();
+    vibrateDevice();
+    
+    // Auto-dismiss after 15 seconds if not clicked (stores in bell)
+    setTimeout(() => {
+        if (modal.classList.contains('show')) {
+            dismissAlert();
+        }
+    }, 15000);
+}
+
+// View order from alert
+function viewOrderFromAlert() {
+    if (currentOrderId) {
+        window.location.href = 'get_order_details.php?order_id=' + currentOrderId;
+    }
+}
+
+// Dismiss alert (saves to notification bell)
+function dismissAlert() {
+    document.getElementById('orderAlertModal').classList.remove('show');
+    
+    // Mark as acknowledged but still save to notifications
+    if (currentOrderId) {
+        // The notification is already saved in database by checkout process
+        // Just close the modal
+        currentOrderId = null;
+    }
+}
+
+// ✅ REAL-TIME ORDER CHECKING (Every 5 seconds for true real-time)
 function checkNewOrders() {
     fetch('check_new_orders.php')
         .then(r => r.json())
         .then(data => {
             if (data.has_new_order) {
-                showPopup(data.message);
+                // Check if this is a new order we haven't shown yet
+                if (data.order_id !== lastCheckedOrder) {
+                    lastCheckedOrder = data.order_id;
+                    showLargeAlert(data);
+                    
+                    // Update notification badge
+                    fetch('update_notification_count.php')
+                        .then(r => r.json())
+                        .then(countData => {
+                            const badge = document.querySelector('.notif-badge');
+                            if (countData.count > 0) {
+                                if (badge) {
+                                    badge.textContent = countData.count;
+                                    badge.style.display = 'flex';
+                                }
+                            }
+                        });
+                }
             }
         })
         .catch(err => console.log('Polling error:', err));
 }
 
-function showPopup(msg) {
-    const popup = document.getElementById('notifPopup');
-    document.getElementById('notifPopupMsg').textContent = msg;
-    popup.classList.add('show');
-    
-    setTimeout(() => {
-        popup.classList.remove('show');
-    }, 6000);
-}
+// Check every 5 seconds for TRUE real-time
+setInterval(checkNewOrders, 5000);
 
-// Start polling
-setInterval(checkNewOrders, 30000);
+// Check immediately on page load
 checkNewOrders();
 </script>
 
