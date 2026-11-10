@@ -54,22 +54,40 @@ $recent_orders = $stmt_list->get_result();
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="admin_style.css">
+
+<!-- ✅ FRAME BUSTER: Forces page to load as full page, not in modal -->
+<script>
+if (window.self !== window.top) {
+    window.top.location = window.location.href;
+}
+</script>
+
 <style>
 /* Ensure this page is NOT inside a modal */
 body {
-    display: flex;
-    min-height: 100vh;
+    display: flex !important;
+    min-height: 100vh !important;
+    background: #f1f5f9 !important;
 }
+
+/* Hide any modal overlays that might be wrapping this */
+.modal-overlay, .modal-backdrop, [class*="modal"] {
+    display: none !important;
+}
+
 .page-wrapper {
     display: flex;
     width: 100%;
+    min-height: 100vh;
 }
+
 .status-form {
     background: #fff;
     padding: 1.5rem;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
+
 .status-select {
     width: 100%;
     padding: 0.75rem 1rem;
@@ -79,12 +97,15 @@ body {
     font-family: inherit;
     margin: 1rem 0;
     cursor: pointer;
+    background: #fff;
 }
+
 .status-select:focus {
     outline: none;
     border-color: #8B0000;
     box-shadow: 0 0 0 4px rgba(139, 0, 0, 0.1);
 }
+
 .btn-update {
     width: 100%;
     padding: 0.85rem;
@@ -97,39 +118,65 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
+
 .btn-update:hover {
     background: #6d0000;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(139, 0, 0, 0.3);
 }
+
 .order-info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
+
 .info-box {
     background: #f8fafc;
     padding: 1rem;
     border-radius: 10px;
+    margin-bottom: 0.8rem;
 }
+
 .info-label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #64748b;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 0.3rem;
 }
+
 .info-value {
     font-size: 1.1rem;
     font-weight: 700;
     color: #0f172a;
 }
+
 .info-value.total {
     font-size: 1.5rem;
     color: #8B0000;
+}
+
+/* Override any modal styles */
+.main-content {
+    margin-left: 260px !important;
+    padding: 2rem !important;
+    flex: 1 !important;
+}
+
+.sidebar {
+    display: flex !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    height: 100vh !important;
 }
 </style>
 </head>
@@ -181,23 +228,23 @@ body {
             <!-- Order Info -->
             <div class="admin-card">
                 <h3><i class="bi bi-info-circle"></i> Order Information</h3>
-                <div class="info-box" style="margin-bottom:1rem">
+                <div class="info-box">
                     <div class="info-label">Order Number</div>
                     <div class="info-value"><?= htmlspecialchars($order['order_number']) ?></div>
                 </div>
-                <div class="info-box" style="margin-bottom:1rem">
+                <div class="info-box">
                     <div class="info-label">Date & Time</div>
                     <div class="info-value"><?= date('M j, Y g:i A', strtotime($order['created_at'])) ?></div>
                 </div>
-                <div class="info-box" style="margin-bottom:1rem">
+                <div class="info-box">
                     <div class="info-label">Order Type</div>
                     <div class="info-value"><?= htmlspecialchars($order['order_type']) ?></div>
                 </div>
-                <div class="info-box" style="margin-bottom:1rem">
+                <div class="info-box">
                     <div class="info-label">Payment Method</div>
                     <div class="info-value"><?= htmlspecialchars($order['payment_method']) ?></div>
                 </div>
-                <div class="info-box" style="margin-bottom:1rem">
+                <div class="info-box">
                     <div class="info-label">Pickup Time</div>
                     <div class="info-value"><?= htmlspecialchars($order['pickup_time']) ?></div>
                 </div>
@@ -206,7 +253,7 @@ body {
                     <div class="info-value total">₱<?= number_format($order['total_amount'], 2) ?></div>
                 </div>
                 <?php if (!empty($order['order_note'])): ?>
-                    <div class="info-box" style="margin-top:1rem">
+                    <div class="info-box">
                         <div class="info-label">Customer Notes</div>
                         <div class="info-value" style="font-size:0.95rem"><?= htmlspecialchars($order['order_note']) ?></div>
                     </div>
