@@ -19,7 +19,7 @@ if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_me'])) {
         $_SESSION['role'] = $user['role'];
 
         if ($user['role'] === 'admin') {
-            header('Location: ../admin/dashboard.php');
+            header('Location: ../admin/admin.php');
         } else {
             header('Location: index.php');
         }
