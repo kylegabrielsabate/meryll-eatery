@@ -60,16 +60,29 @@ if ($res) {
     }
 }
 
-// ✅ FIX 1: Exclude Tortang Talong from combo modals
-$custom_ulam_items = array_filter($ulam_items, function($item) {
-    return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice', 'Tortang Talong']);
+// ✅ FIX 1: Sort Meryenda to force Siomai and Lumpiang Ube to be next to each other
+usort($meryenda_items, function($a, $b) {
+    $get_priority = function($name) {
+        if (stripos($name, 'Siomai') !== false) return 1;
+        if (stripos($name, 'Lumpiang Ube') !== false || stripos($name, 'Lumpia Ube') !== false) return 2;
+        return 99;
+    };
+    return $get_priority($a['name']) <=> $get_priority($b['name']);
 });
 
-$meat_items = array_filter($custom_ulam_items, function($i) { return preg_match('/chicken|pork|beef|meat|adobo|bbq|tocino|longganisa|spam|hotdog/i', $i['name']); });
+// ✅ FIX 2: Main Grid (KEEPS Tortang Talong so it shows on the front page)
+$custom_ulam_items = array_filter($ulam_items, function($item) {
+    return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice']);
+});
 
-// ✅ FIX 2: Removed 'talong' from gulay regex
-$gulay_items = array_filter($custom_ulam_items, function($i) { return preg_match('/gulay|sitaw|ampalaya|sayote|vegetable|kangkong|malunggay/i', $i['name']); });
-if(empty($meat_items)) $meat_items = $custom_ulam_items;
+// ✅ FIX 3: Modal Grid (REMOVES Tortang Talong so it doesn't show in Meat-to-Meat combos)
+$modal_ulam_items = array_filter($custom_ulam_items, function($item) {
+    return stripos($item['name'], 'Tortang Talong') === false;
+});
+
+$meat_items = array_filter($modal_ulam_items, function($i) { return preg_match('/chicken|pork|beef|meat|adobo|bbq|tocino/i', $i['name']); });
+$gulay_items = array_filter($modal_ulam_items, function($i) { return preg_match('/gulay|sitaw|ampalaya|sayote|vegetable|kangkong|malunggay/i', $i['name']); });
+if(empty($meat_items)) $meat_items = $modal_ulam_items;
 
 $active_cat = isset($_GET['cat']) ? $_GET['cat'] : 'all';
 
@@ -315,7 +328,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </main>
 
-<!-- ============ RICE MEAL MODAL (FIXED FOR SPLIT LAYOUT) ============ -->
+<!-- ============ RICE MEAL MODAL ============ -->
 <div class="modal-overlay" id="riceMealModal">
     <div class="modal-content">
         <div class="modal-header"><h2 id="riceMealTitle">Select Your Rice Meal</h2><button class="modal-close" onclick="closeModal('riceMealModal')"><i class="bi bi-x-lg"></i></button></div>
@@ -324,7 +337,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="modal-section" id="standardUlamSection">
             <h3>1. Choose 1-3 Ulam</h3>
             <div class="modal-images" id="ulamSelection">
-                <?php foreach($custom_ulam_items as $item): ?>
+                <?php foreach($modal_ulam_items as $item): ?> <!-- Uses modal_ulam_items (No Tortang Talong) -->
                 <div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleUlam(this)">
                     <img src="<?=imgTag($item['folder'],$item['image'])?>">
                     <div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div>
@@ -454,7 +467,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 const RICE_PRICE = 15;
 const riceMeals = <?=json_encode($rice_meals_list)?>;
 let selectedUlam=[], selectedRiceType='white', selectedDrink='', currentMeal=null;
-let splitSelectedMeat=[], splitSelectedGulay=[]; // For split layout
+let splitSelectedMeat=[], splitSelectedGulay=[]; 
 let selectedCustomMeat=[], selectedCustomGulay=[], customRiceType='white', selectedCustomDrink='';
 let selectedSides=[], breakfastRice='white', selectedBreakfastDrink='';
 let qtyModalCard=null, qtyModalName='', qtyModalPrice=0, qtyModalQty=1, qtyModalProductID=0;
@@ -498,7 +511,7 @@ function addFromCard(card){
     }
 }
 
-// --- RICE MEAL MODAL (FIXED) ---
+// --- RICE MEAL MODAL ---
 function openRiceMealModal(index){
     currentMeal = riceMeals[index]; 
     selectedUlam=[]; 
@@ -511,12 +524,10 @@ function openRiceMealModal(index){
     document.getElementById('riceMealTotal').textContent = '₱'+currentMeal.price.toFixed(2);
     document.getElementById('btnConfirmRiceMeal').disabled = true;
     
-    // Reset all selections visually
     document.querySelectorAll('#riceMealModal .modal-img-option').forEach(el=>el.classList.remove('selected'));
     document.querySelectorAll('#riceMealModal .rice-type-option').forEach(el=>el.classList.remove('selected'));
     document.querySelector('#riceMealModal .rice-type-option[data-type="white"]').classList.add('selected');
     
-    // Toggle Layouts based on type
     if (currentMeal.type === 'gulay') {
         document.getElementById('standardUlamSection').style.display = 'none';
         document.getElementById('splitMeatSection').style.display = 'block';
@@ -544,7 +555,6 @@ function toggleUlam(el){
     checkRiceReady();
 }
 
-// New function for split layout
 function toggleSplitUlam(el, type) {
     const name = el.dataset.name;
     let list = type === 'meat' ? splitSelectedMeat : splitSelectedGulay;
