@@ -3,7 +3,7 @@ session_start();
 include '../connect.php';
 
 // ✅ ROLE-BASED SECURITY
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../user/login.php');
     exit();
 }
@@ -51,47 +51,48 @@ $recent_orders = $stmt_list->get_result();
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Order Details - Meryll Eatery</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
 
-<!-- ✅ IDENTICAL SIDEBAR FOR ALL PAGES -->
-<aside class="sidebar">
+<!-- ✅ IDENTICAL SIDEBAR START (Matches all other admin pages perfectly) -->
+<aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fas fa-arrow-left"></i></button>
     <a href="admin.php" class="logo">
-        <i class="bi bi-building-fill logo-icon"></i>
-        <div>
-            <div>Meryll Eatery</div>
-            <small style="font-size:0.7rem;opacity:0.8">Admin Panel</small>
-        </div>
+        <span class="logo-icon"><i class="fas fa-utensils"></i></span> Meryll Eatery
     </a>
-    <nav class="nav-menu">
-        <a href="admin.php" class="nav-link"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
-        <a href="admin_inventory.php" class="nav-link"><i class="bi bi-box-seam"></i><span>Inventory</span></a>
-        <a href="admin_orders.php" class="nav-link"><i class="bi bi-receipt"></i><span>Orders</span></a>
-        <a href="admin_report.php" class="nav-link"><i class="bi bi-bar-chart-line"></i><span>Reports</span></a>
-        <a href="get_order_details.php" class="nav-link active"><i class="bi bi-file-earmark-text"></i><span>Order Details</span></a>
-    </nav>
+    <ul class="nav-menu">
+        <li class="nav-item"><a href="admin.php" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+        <li class="nav-item"><a href="admin_orders.php" class="nav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a></li>
+        <li class="nav-item"><a href="get_order_details.php" class="nav-link active"><i class="fas fa-receipt"></i> Order Details</a></li>
+        <li class="nav-item"><a href="admin_inventory.php" class="nav-link"><i class="fas fa-boxes-stacked"></i> Inventory</a></li>
+        <li class="nav-item"><a href="admin_report.php" class="nav-link"><i class="fas fa-chart-line"></i> Monthly Report</a></li>
+    </ul>
     <div class="sidebar-footer">
-        <a href="../user/logout.php" class="nav-link" style="color:#ef4444"><i class="bi bi-box-arrow-right"></i><span>Logout</span></a>
+        <a href="admin.php" class="nav-link"><i class="fas fa-user-shield"></i> <?php echo htmlspecialchars($_SESSION['username']); ?></a>
+        <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
 </aside>
+<!-- ✅ IDENTICAL SIDEBAR END -->
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
 <main class="main-content">
-    <div class="admin-container">
+    <div class="admin-container" style="max-width: 1200px; margin: 0 auto;">
         <div class="admin-header">
             <div>
                 <h1><?= $order ? 'Order #' . htmlspecialchars($order['order_number']) : 'All Orders' ?></h1>
-                <p><?= $order ? 'View and manage this order' : 'Recent customer orders' ?></p>
+                <p style="color: var(--admin-text-muted, #64748b);"><?= $order ? 'View and manage this order' : 'Recent customer orders' ?></p>
             </div>
             <?php if ($order): ?>
-                <a href="get_order_details.php" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to List</a>
+                <a href="get_order_details.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to List</a>
             <?php endif; ?>
         </div>
 
         <?php if (isset($_GET['msg']) && $_GET['msg'] === 'updated'): ?>
-            <div class="alert-msg success"><i class="bi bi-check-circle-fill"></i> Order status updated successfully!</div>
+            <div class="alert-msg success"><i class="fas fa-check-circle"></i> Order status updated successfully!</div>
         <?php endif; ?>
 
         <?php if ($order): ?>
@@ -99,7 +100,7 @@ $recent_orders = $stmt_list->get_result();
         <div class="order-info-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
             <!-- Order Info -->
             <div class="admin-card">
-                <h3><i class="bi bi-info-circle"></i> Order Information</h3>
+                <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-info-circle" style="color:#8B0000;"></i> Order Information</h3>
                 <div class="info-box" style="background:#f8fafc; padding:1rem; border-radius:10px; margin-bottom:0.8rem;">
                     <div class="info-label" style="font-size:0.7rem; color:#64748b; font-weight:700; text-transform:uppercase;">Order Number</div>
                     <div class="info-value" style="font-size:1.1rem; font-weight:700; color:#0f172a;"><?= htmlspecialchars($order['order_number']) ?></div>
@@ -130,7 +131,7 @@ $recent_orders = $stmt_list->get_result();
 
             <!-- Status Checker -->
             <div class="admin-card">
-                <h3><i class="bi bi-check2-square"></i> Order Status Checker</h3>
+                <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-check-square" style="color:#8B0000;"></i> Order Status Checker</h3>
                 <p style="color:#64748b; margin-bottom:1rem; font-size:0.9rem;">Update the status of this order as you prepare it.</p>
                 
                 <div style="margin-bottom:1.5rem;">
@@ -143,8 +144,8 @@ $recent_orders = $stmt_list->get_result();
                 <form method="POST" action="get_order_details.php?id=<?= $order['order_id'] ?>">
                     <input type="hidden" name="order_id" value="<?= $order['order_id'] ?>">
                     <div class="form-group">
-                        <label style="display:block; font-size:0.8rem; color:#64748b; font-weight:700; margin-bottom:0.4rem;">Update Status To:</label>
-                        <select name="status" style="width:100%; padding:0.75rem 1rem; border:2px solid #e2e8f0; border-radius:10px; font-size:1rem; font-family:inherit; margin-bottom:1rem;" required>
+                        <label style="display:block; font-size:0.8rem; color:#64748b; font-weight:700; margin-bottom:0.4rem; text-transform:uppercase; letter-spacing:0.5px;">Update Status To:</label>
+                        <select name="status" style="width:100%; padding:0.75rem 1rem; border:2px solid #e2e8f0; border-radius:10px; font-size:1rem; font-family:inherit; margin-bottom:1rem; background:#fff;" required>
                             <option value="Pending" <?= $order['status'] == 'Pending' ? 'selected' : '' ?>>⏳ Pending</option>
                             <option value="Preparing" <?= $order['status'] == 'Preparing' ? 'selected' : '' ?>>👨‍🍳 Preparing</option>
                             <option value="Ready" <?= $order['status'] == 'Ready' ? 'selected' : '' ?>>✅ Ready for Pickup</option>
@@ -152,8 +153,8 @@ $recent_orders = $stmt_list->get_result();
                             <option value="Cancelled" <?= $order['status'] == 'Cancelled' ? 'selected' : '' ?>>❌ Cancelled</option>
                         </select>
                     </div>
-                    <button type="submit" name="update_status" class="btn-update" style="width:100%; padding:0.85rem; background:#8B0000; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
-                        <i class="bi bi-save"></i> Update Status
+                    <button type="submit" name="update_status" class="btn-primary" style="width:100%; padding:0.85rem; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit;">
+                        <i class="fas fa-save"></i> Update Status
                     </button>
                 </form>
             </div>
@@ -161,7 +162,7 @@ $recent_orders = $stmt_list->get_result();
 
         <!-- Order Items Table -->
         <div class="admin-card">
-            <h3><i class="bi bi-list-ul"></i> Order Items</h3>
+            <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-list-ul" style="color:#8B0000;"></i> Order Items</h3>
             <table class="data-table">
                 <thead>
                     <tr>
@@ -193,7 +194,7 @@ $recent_orders = $stmt_list->get_result();
         <?php else: ?>
         <!-- LIST OF ALL RECENT ORDERS -->
         <div class="admin-card">
-            <h3><i class="bi bi-clock-history"></i> Recent Orders</h3>
+            <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-clock" style="color:#8B0000;"></i> Recent Orders</h3>
             <?php if ($recent_orders->num_rows > 0): ?>
                 <table class="data-table">
                     <thead>
@@ -219,9 +220,8 @@ $recent_orders = $stmt_list->get_result();
                                 </span>
                             </td>
                             <td>
-                                <!-- ✅ STANDARD REDIRECT LINK (No JS, just pure HTML) -->
-                                <a href="get_order_details.php?id=<?= $row['order_id'] ?>" class="btn-view" style="background:#8B0000; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
-                                    <i class="bi bi-eye"></i> View
+                                <a href="get_order_details.php?id=<?= $row['order_id'] ?>" class="btn-view" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
+                                    <i class="fas fa-eye"></i> View
                                 </a>
                             </td>
                         </tr>
@@ -236,6 +236,14 @@ $recent_orders = $stmt_list->get_result();
 
     </div>
 </main>
+
+<script>
+function closeSidebar() { 
+    document.getElementById('sidebar').classList.remove('active'); 
+    document.getElementById('sidebarOverlay').classList.remove('active'); 
+    document.body.style.overflow = ''; 
+}
+</script>
 
 </body>
 </html>
