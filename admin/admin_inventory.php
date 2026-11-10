@@ -57,7 +57,7 @@ $products = $con->query($sql);
     <link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <!-- ✅ IDENTICAL SIDEBAR START -->
     <aside class="sidebar" id="sidebar">
         <button class="sidebar-close" onclick="closeSidebar()"><i class="fas fa-arrow-left"></i></button>
         <a href="admin.php" class="logo"><span class="logo-icon"><i class="fas fa-utensils"></i></span> Meryll Eatery</a>
@@ -73,6 +73,9 @@ $products = $con->query($sql);
             <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </aside>
+    <!-- ✅ IDENTICAL SIDEBAR END -->
+
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
     <main class="main-content">
         <div class="admin-container" style="max-width: 1200px; margin: 0 auto;">
@@ -145,7 +148,7 @@ $products = $con->query($sql);
                         <div class="form-group"><label>Stock Quantity</label><input type="number" name="stock" id="inputStock" required></div>
                     </div>
                     <div class="form-group"><label>Image Filename (e.g., adobo.jpg)</label><input type="text" name="productImage" id="inputImage" placeholder="Leave blank if none"></div>
-                    <button type="submit" class="btn-submit" id="submitBtn" style="width:100%;padding:0.85rem;background:#8B0000;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Add Product</button>
+                    <button type="submit" class="btn-primary" id="submitBtn" style="width:100%; margin-top:1rem;">Add Product</button>
                 </form>
             </div>
         </div>

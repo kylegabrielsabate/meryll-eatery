@@ -35,7 +35,7 @@ $top_items_report = $con->query("
     <link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <!-- ✅ IDENTICAL SIDEBAR START -->
     <aside class="sidebar" id="sidebar">
         <button class="sidebar-close" onclick="closeSidebar()"><i class="fas fa-arrow-left"></i></button>
         <a href="admin.php" class="logo"><span class="logo-icon"><i class="fas fa-utensils"></i></span> Meryll Eatery</a>
@@ -51,9 +51,12 @@ $top_items_report = $con->query("
             <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </aside>
+    <!-- ✅ IDENTICAL SIDEBAR END -->
+
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
     
     <main class="main-content">
-        <div class="admin-container" style="max-width: 1000px; margin: 0 auto; padding: 2rem;">
+        <div class="admin-container" style="max-width: 1000px; margin: 0 auto;">
             <div class="print-header">
                 <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Meryll Eatery</h1>
                 <p style="font-size: 1rem; color: #555;">Official Monthly Sales Report</p>
@@ -64,7 +67,7 @@ $top_items_report = $con->query("
                 <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Print Report</button>
             </div>
 
-            <div class="admin-card" style="background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);margin-bottom: 2rem;">
+            <div class="admin-card">
                 <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-trophy" style="color:#8B0000;"></i> Top 5 Most Sold Items</h3>
                 <?php if ($top_items_report && $top_items_report->num_rows > 0): ?>
                     <table class="data-table">
@@ -85,7 +88,7 @@ $top_items_report = $con->query("
                 <?php endif; ?>
             </div>
 
-            <div class="admin-card" style="background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+            <div class="admin-card">
                 <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-calendar-alt" style="color:#8B0000;"></i> Sales Breakdown by Month</h3>
                 <?php if (empty($monthly_data)): ?>
                     <p style="text-align: center; color: #94a3b8; padding: 2rem;">No order data available yet.</p>

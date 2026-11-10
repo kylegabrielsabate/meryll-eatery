@@ -12,7 +12,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     if ($stmt->execute()) { $msg = "Order status updated successfully!"; }
 }
 
-// Fetch all orders
 $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.user_id = u.user_id ORDER BY o.created_at DESC");
 ?>
 <!DOCTYPE html>
@@ -25,7 +24,7 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
     <link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <!-- ✅ IDENTICAL SIDEBAR START -->
     <aside class="sidebar" id="sidebar">
         <button class="sidebar-close" onclick="closeSidebar()"><i class="fas fa-arrow-left"></i></button>
         <a href="admin.php" class="logo"><span class="logo-icon"><i class="fas fa-utensils"></i></span> Meryll Eatery</a>
@@ -41,6 +40,9 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
             <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </aside>
+    <!-- ✅ IDENTICAL SIDEBAR END -->
+
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
     <main class="main-content">
         <div class="admin-container" style="max-width: 1200px; margin: 0 auto;">
@@ -66,7 +68,6 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
                                     <td style="font-weight: 700;">₱<?php echo number_format($row['total_amount'], 2); ?></td>
                                     <td><span class="status-badge status-<?php echo $statusClass; ?>"><?php echo htmlspecialchars($row['status']); ?></span></td>
                                     <td>
-                                        <!-- ✅ CHANGED TO DIRECT LINK (No more modal) -->
                                         <a href="get_order_details.php?id=<?php echo $row['order_id']; ?>" class="btn-view" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
                                             <i class="fas fa-eye"></i> Details
                                         </a>

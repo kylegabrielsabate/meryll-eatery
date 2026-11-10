@@ -54,135 +54,10 @@ $recent_orders = $stmt_list->get_result();
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="admin_style.css">
-
-<!-- ✅ FRAME BUSTER: Forces page to load as full page, not in modal -->
-<script>
-if (window.self !== window.top) {
-    window.top.location = window.location.href;
-}
-</script>
-
-<style>
-/* Ensure this page is NOT inside a modal */
-body {
-    display: flex !important;
-    min-height: 100vh !important;
-    background: #f1f5f9 !important;
-}
-
-/* Hide any modal overlays that might be wrapping this */
-.modal-overlay, .modal-backdrop, [class*="modal"] {
-    display: none !important;
-}
-
-.page-wrapper {
-    display: flex;
-    width: 100%;
-    min-height: 100vh;
-}
-
-.status-form {
-    background: #fff;
-    padding: 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.status-select {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 10px;
-    font-size: 1rem;
-    font-family: inherit;
-    margin: 1rem 0;
-    cursor: pointer;
-    background: #fff;
-}
-
-.status-select:focus {
-    outline: none;
-    border-color: #8B0000;
-    box-shadow: 0 0 0 4px rgba(139, 0, 0, 0.1);
-}
-
-.btn-update {
-    width: 100%;
-    padding: 0.85rem;
-    background: #8B0000;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-weight: 700;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: inherit;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.btn-update:hover {
-    background: #6d0000;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(139, 0, 0, 0.3);
-}
-
-.order-info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.info-box {
-    background: #f8fafc;
-    padding: 1rem;
-    border-radius: 10px;
-    margin-bottom: 0.8rem;
-}
-
-.info-label {
-    font-size: 0.7rem;
-    color: #64748b;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.3rem;
-}
-
-.info-value {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #0f172a;
-}
-
-.info-value.total {
-    font-size: 1.5rem;
-    color: #8B0000;
-}
-
-/* Override any modal styles */
-.main-content {
-    margin-left: 260px !important;
-    padding: 2rem !important;
-    flex: 1 !important;
-}
-
-.sidebar {
-    display: flex !important;
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    height: 100vh !important;
-}
-</style>
 </head>
 <body>
 
-<!-- Sidebar -->
+<!-- ✅ IDENTICAL SIDEBAR FOR ALL PAGES -->
 <aside class="sidebar">
     <a href="admin.php" class="logo">
         <i class="bi bi-building-fill logo-icon"></i>
@@ -203,7 +78,6 @@ body {
     </div>
 </aside>
 
-<div class="page-wrapper">
 <main class="main-content">
     <div class="admin-container">
         <div class="admin-header">
@@ -221,41 +95,35 @@ body {
         <?php endif; ?>
 
         <?php if ($order): ?>
-        <!-- ==========================================
-             SINGLE ORDER DETAILS VIEW
-             ========================================== -->
-        <div class="order-info-grid">
+        <!-- SINGLE ORDER DETAILS VIEW -->
+        <div class="order-info-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
             <!-- Order Info -->
             <div class="admin-card">
                 <h3><i class="bi bi-info-circle"></i> Order Information</h3>
-                <div class="info-box">
-                    <div class="info-label">Order Number</div>
-                    <div class="info-value"><?= htmlspecialchars($order['order_number']) ?></div>
+                <div class="info-box" style="background:#f8fafc; padding:1rem; border-radius:10px; margin-bottom:0.8rem;">
+                    <div class="info-label" style="font-size:0.7rem; color:#64748b; font-weight:700; text-transform:uppercase;">Order Number</div>
+                    <div class="info-value" style="font-size:1.1rem; font-weight:700; color:#0f172a;"><?= htmlspecialchars($order['order_number']) ?></div>
                 </div>
-                <div class="info-box">
+                <div class="info-box" style="background:#f8fafc; padding:1rem; border-radius:10px; margin-bottom:0.8rem;">
                     <div class="info-label">Date & Time</div>
                     <div class="info-value"><?= date('M j, Y g:i A', strtotime($order['created_at'])) ?></div>
                 </div>
-                <div class="info-box">
+                <div class="info-box" style="background:#f8fafc; padding:1rem; border-radius:10px; margin-bottom:0.8rem;">
                     <div class="info-label">Order Type</div>
                     <div class="info-value"><?= htmlspecialchars($order['order_type']) ?></div>
                 </div>
-                <div class="info-box">
+                <div class="info-box" style="background:#f8fafc; padding:1rem; border-radius:10px; margin-bottom:0.8rem;">
                     <div class="info-label">Payment Method</div>
                     <div class="info-value"><?= htmlspecialchars($order['payment_method']) ?></div>
                 </div>
-                <div class="info-box">
-                    <div class="info-label">Pickup Time</div>
-                    <div class="info-value"><?= htmlspecialchars($order['pickup_time']) ?></div>
-                </div>
-                <div class="info-box">
+                <div class="info-box" style="background:#f8fafc; padding:1rem; border-radius:10px; margin-bottom:0.8rem;">
                     <div class="info-label">Total Amount</div>
-                    <div class="info-value total">₱<?= number_format($order['total_amount'], 2) ?></div>
+                    <div class="info-value" style="font-size:1.5rem; color:#8B0000;">₱<?= number_format($order['total_amount'], 2) ?></div>
                 </div>
                 <?php if (!empty($order['order_note'])): ?>
-                    <div class="info-box">
+                    <div class="info-box" style="background:#f8fafc; padding:1rem; border-radius:10px;">
                         <div class="info-label">Customer Notes</div>
-                        <div class="info-value" style="font-size:0.95rem"><?= htmlspecialchars($order['order_note']) ?></div>
+                        <div class="info-value" style="font-size:0.95rem;"><?= htmlspecialchars($order['order_note']) ?></div>
                     </div>
                 <?php endif; ?>
             </div>
@@ -263,11 +131,11 @@ body {
             <!-- Status Checker -->
             <div class="admin-card">
                 <h3><i class="bi bi-check2-square"></i> Order Status Checker</h3>
-                <p style="color:#64748b; margin-bottom:1rem; font-size:0.9rem">Update the status of this order as you prepare it.</p>
+                <p style="color:#64748b; margin-bottom:1rem; font-size:0.9rem;">Update the status of this order as you prepare it.</p>
                 
-                <div style="margin-bottom:1.5rem">
+                <div style="margin-bottom:1.5rem;">
                     <div class="info-label">Current Status</div>
-                    <span class="status-badge status-<?= strtolower(str_replace(' ', '-', $order['status'])) ?>" style="font-size:1rem; padding:8px 16px">
+                    <span class="status-badge status-<?= strtolower(str_replace(' ', '-', $order['status'])) ?>" style="font-size:1rem; padding:8px 16px; display:inline-block; margin-top:0.5rem;">
                         <?= htmlspecialchars($order['status']) ?>
                     </span>
                 </div>
@@ -275,8 +143,8 @@ body {
                 <form method="POST" action="get_order_details.php?id=<?= $order['order_id'] ?>">
                     <input type="hidden" name="order_id" value="<?= $order['order_id'] ?>">
                     <div class="form-group">
-                        <label>Update Status To:</label>
-                        <select name="status" class="status-select" required>
+                        <label style="display:block; font-size:0.8rem; color:#64748b; font-weight:700; margin-bottom:0.4rem;">Update Status To:</label>
+                        <select name="status" style="width:100%; padding:0.75rem 1rem; border:2px solid #e2e8f0; border-radius:10px; font-size:1rem; font-family:inherit; margin-bottom:1rem;" required>
                             <option value="Pending" <?= $order['status'] == 'Pending' ? 'selected' : '' ?>>⏳ Pending</option>
                             <option value="Preparing" <?= $order['status'] == 'Preparing' ? 'selected' : '' ?>>👨‍🍳 Preparing</option>
                             <option value="Ready" <?= $order['status'] == 'Ready' ? 'selected' : '' ?>>✅ Ready for Pickup</option>
@@ -284,7 +152,7 @@ body {
                             <option value="Cancelled" <?= $order['status'] == 'Cancelled' ? 'selected' : '' ?>>❌ Cancelled</option>
                         </select>
                     </div>
-                    <button type="submit" name="update_status" class="btn-update">
+                    <button type="submit" name="update_status" class="btn-update" style="width:100%; padding:0.85rem; background:#8B0000; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
                         <i class="bi bi-save"></i> Update Status
                     </button>
                 </form>
@@ -315,17 +183,15 @@ body {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="3" style="text-align:right; font-weight:700">Total:</td>
-                        <td style="font-weight:800; color:#8B0000; font-size:1.1rem">₱<?= number_format($order['total_amount'], 2) ?></td>
+                        <td colspan="3" style="text-align:right; font-weight:700;">Total:</td>
+                        <td style="font-weight:800; color:#8B0000; font-size:1.1rem;">₱<?= number_format($order['total_amount'], 2) ?></td>
                     </tr>
                 </tfoot>
             </table>
         </div>
 
         <?php else: ?>
-        <!-- ==========================================
-             LIST OF ALL RECENT ORDERS
-             ========================================== -->
+        <!-- LIST OF ALL RECENT ORDERS -->
         <div class="admin-card">
             <h3><i class="bi bi-clock-history"></i> Recent Orders</h3>
             <?php if ($recent_orders->num_rows > 0): ?>
@@ -353,7 +219,8 @@ body {
                                 </span>
                             </td>
                             <td>
-                                <a href="get_order_details.php?id=<?= $row['order_id'] ?>" class="btn-view">
+                                <!-- ✅ STANDARD REDIRECT LINK (No JS, just pure HTML) -->
+                                <a href="get_order_details.php?id=<?= $row['order_id'] ?>" class="btn-view" style="background:#8B0000; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
                                     <i class="bi bi-eye"></i> View
                                 </a>
                             </td>
@@ -362,14 +229,13 @@ body {
                     </tbody>
                 </table>
             <?php else: ?>
-                <p style="text-align:center; padding:2rem; color:#64748b">No orders found yet.</p>
+                <p style="text-align:center; padding:2rem; color:#64748b;">No orders found yet.</p>
             <?php endif; ?>
         </div>
         <?php endif; ?>
 
     </div>
 </main>
-</div>
 
 </body>
 </html>
