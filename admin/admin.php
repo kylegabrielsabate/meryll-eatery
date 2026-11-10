@@ -9,7 +9,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 }
 
 $admin_name = $_SESSION['username'];
-$admin_id = $_SESSION['user_id']; 
+$admin_id = $_SESSION['user_id'];
 
 // Fetch unread notifications count
 $stmt = $con->prepare("SELECT COUNT(*) as count FROM notifications WHERE admin_id = ? AND is_read = 0");
@@ -29,10 +29,9 @@ $recent_notifs = $stmt->get_result();
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Dashboard - Meryll Eatery</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-<!-- ✅ LINK TO EXTERNAL CSS -->
-<link rel="stylesheet" href="admin_style.css"> 
+<link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
 
@@ -47,106 +46,135 @@ $recent_notifs = $stmt->get_result();
 
 <!-- Sidebar -->
 <aside class="sidebar">
-    <div class="sidebar-header">
-        <i class="bi bi-building-fill"></i> 
+    <a href="admin.php" class="logo">
+        <i class="bi bi-building-fill logo-icon"></i>
         <div>
-            <h2>Meryll Eatery</h2>
-            <span class="sidebar-subtitle">Admin Panel</span>
+            <div>Meryll Eatery</div>
+            <small style="font-size:0.7rem;opacity:0.8">Admin Panel</small>
         </div>
-    </div>
-    <nav class="sidebar-nav">
-        <a href="admin.php" class="nav-item active"><i class="bi bi-speedometer2"></i> Dashboard</a>
-        <!-- ✅ UPDATED SIDEBAR LINKS -->
-        <a href="admin_inventory.php" class="nav-item"><i class="bi bi-box-seam"></i> Inventory</a>
-        <a href="admin_orders.php" class="nav-item"><i class="bi bi-receipt"></i> Orders</a>
-        <a href="admin_report.php" class="nav-item"><i class="bi bi-bar-chart-line"></i> Reports</a>
-        <a href="get_order_details.php" class="nav-item"><i class="bi bi-file-earmark-text"></i> Order Details</a>
-        
-        <div class="nav-divider"></div>
-        <a href="../user/logout.php" class="nav-item logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
+    </a>
+    
+    <nav class="nav-menu">
+        <a href="admin.php" class="nav-link active">
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="admin_inventory.php" class="nav-link">
+            <i class="bi bi-box-seam"></i>
+            <span>Inventory</span>
+        </a>
+        <a href="admin_orders.php" class="nav-link">
+            <i class="bi bi-receipt"></i>
+            <span>Orders</span>
+        </a>
+        <a href="admin_report.php" class="nav-link">
+            <i class="bi bi-bar-chart-line"></i>
+            <span>Reports</span>
+        </a>
+        <a href="get_order_details.php" class="nav-link">
+            <i class="bi bi-file-earmark-text"></i>
+            <span>Order Details</span>
+        </a>
     </nav>
+    
+    <div class="sidebar-footer">
+        <a href="../user/logout.php" class="nav-link" style="color:#ef4444">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+        </a>
+    </div>
 </aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <!-- Main Content -->
 <main class="main-content">
-    <header class="top-header">
-        <div class="header-left">
-            <h2>Dashboard Overview</h2>
-            <p class="header-date"><?= date('l, F j, Y') ?></p>
-        </div>
-        <div class="header-right">
-            <!-- Notification Bell -->
-            <div class="notif-bell-container">
-                <div class="notif-bell" onclick="toggleNotifDropdown(event)">
-                    <i class="bi bi-bell"></i>
-                    <?php if ($unread_count > 0): ?>
-                        <span class="notif-badge"><?= $unread_count ?></span>
-                    <?php endif; ?>
-                </div>
-                
-                <!-- Dropdown -->
-                <div class="notif-dropdown" id="notifDropdown">
-                    <div class="notif-header">
-                        <span>Notifications</span>
-                        <a href="mark_all_read.php" class="mark-read-btn">Mark all read</a>
-                    </div>
-                    <div class="notif-list">
-                        <?php if ($recent_notifs->num_rows > 0): ?>
-                            <?php while($notif = $recent_notifs->fetch_assoc()): ?>
-                                <div class="notif-item <?= $notif['is_read'] ? '' : 'unread' ?>" onclick="viewNotif(<?= $notif['notification_id'] ?>)">
-                                    <div class="notif-item-content">
-                                        <div class="notif-item-title"><?= htmlspecialchars($notif['title']) ?></div>
-                                        <div class="notif-item-msg"><?= htmlspecialchars($notif['message']) ?></div>
-                                    </div>
-                                    <div class="notif-item-time"><?= date('M j, g:i A', strtotime($notif['created_at'])) ?></div>
-                                </div>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <div class="notif-empty">No notifications yet</div>
+    <div class="admin-container">
+        <div class="admin-header">
+            <div>
+                <h1>Dashboard Overview</h1>
+                <p><?= date('l, F j, Y') ?></p>
+            </div>
+            <div class="header-right" style="display:flex;align-items:center;gap:20px">
+                <!-- Notification Bell -->
+                <div class="notif-bell-container">
+                    <div class="notif-bell" onclick="toggleNotifDropdown(event)">
+                        <i class="bi bi-bell"></i>
+                        <?php if ($unread_count > 0): ?>
+                            <span class="notif-badge"><?= $unread_count ?></span>
                         <?php endif; ?>
                     </div>
+                    
+                    <!-- Dropdown -->
+                    <div class="notif-dropdown" id="notifDropdown">
+                        <div class="notif-header">
+                            <span>Notifications</span>
+                            <a href="#" class="mark-read-btn">Mark all read</a>
+                        </div>
+                        <div class="notif-list">
+                            <?php if ($recent_notifs->num_rows > 0): ?>
+                                <?php while($notif = $recent_notifs->fetch_assoc()): ?>
+                                    <div class="notif-item <?= $notif['is_read'] ? '' : 'unread' ?>" onclick="viewNotif(<?= $notif['notification_id'] ?>)">
+                                        <div class="notif-item-content">
+                                            <div class="notif-item-title"><?= htmlspecialchars($notif['title']) ?></div>
+                                            <div class="notif-item-msg"><?= htmlspecialchars($notif['message']) ?></div>
+                                        </div>
+                                        <div class="notif-item-time"><?= date('M j, g:i A', strtotime($notif['created_at'])) ?></div>
+                                    </div>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <div class="notif-empty">No notifications yet</div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="user-profile">
-                <div class="user-avatar"><i class="bi bi-person-fill"></i></div>
-                <div class="user-info">
-                    <span class="user-name"><?= htmlspecialchars($admin_name) ?></span>
-                    <span class="user-role">Administrator</span>
+                
+                <div class="user-profile" style="display:flex;align-items:center;gap:10px">
+                    <div class="user-avatar" style="width:40px;height:40px;background:#fef2f2;color:#ef4444;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div>
+                        <div class="user-name" style="font-weight:600;font-size:0.9rem"><?= htmlspecialchars($admin_name) ?></div>
+                        <div class="user-role" style="font-size:0.75rem;color:#64748b">Administrator</div>
+                    </div>
                 </div>
             </div>
         </div>
-    </header>
 
-    <div class="dashboard-content">
-        <div class="welcome-card">
+        <div class="welcome-card" style="background:#fff;padding:2rem;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);margin-bottom:2rem;display:flex;justify-content:space-between;align-items:center">
             <div class="welcome-text">
-                <h2>Welcome back, <?= htmlspecialchars($admin_name) ?>! 👋</h2>
-                <p>Here is an overview of your store today. New online orders will pop up here in real-time.</p>
+                <h2 style="font-size:1.5rem;margin-bottom:0.5rem">Welcome back, <?= htmlspecialchars($admin_name) ?>! 👋</h2>
+                <p style="color:#64748b">Here is an overview of your store today. New online orders will pop up here in real-time.</p>
             </div>
-            <div class="welcome-icon">
+            <div class="welcome-icon" style="font-size:4rem;color:#fef2f2">
                 <i class="bi bi-shop"></i>
             </div>
         </div>
 
-        <!-- Placeholder for Stats (You can add your stats here later) -->
+        <!-- Stats Grid -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-icon bg-red"><i class="bi bi-receipt"></i></div>
+                <div class="stat-icon red">
+                    <i class="bi bi-receipt"></i>
+                </div>
                 <div class="stat-info">
                     <h3>Pending Orders</h3>
                     <p class="stat-number">0</p>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon bg-blue"><i class="bi bi-check-circle"></i></div>
+                <div class="stat-icon green">
+                    <i class="bi bi-check-circle"></i>
+                </div>
                 <div class="stat-info">
                     <h3>Completed Today</h3>
                     <p class="stat-number">0</p>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon bg-green"><i class="bi bi-cash-coin"></i></div>
+                <div class="stat-icon blue">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
                 <div class="stat-info">
                     <h3>Total Revenue</h3>
                     <p class="stat-number">₱0.00</p>
@@ -173,7 +201,6 @@ document.addEventListener('click', function(e) {
 });
 
 function viewNotif(id) {
-    // You can link this to your get_order_details.php later
     window.location.href = 'get_order_details.php?notif_id=' + id;
 }
 
@@ -194,7 +221,6 @@ function showPopup(msg) {
     document.getElementById('notifPopupMsg').textContent = msg;
     popup.classList.add('show');
     
-    // Hide after 6 seconds
     setTimeout(() => {
         popup.classList.remove('show');
     }, 6000);
