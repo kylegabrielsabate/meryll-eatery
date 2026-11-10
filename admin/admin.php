@@ -114,20 +114,6 @@ $categories = [
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="admin_style.css">
-<style>
-/* Dashboard specific overrides */
-.stat-card { transition: transform 0.2s; }
-.stat-card:hover { transform: translateY(-4px); }
-.product-card { cursor: pointer; transition: all 0.3s; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.product-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
-.product-image { width: 100%; height: 160px; object-fit: cover; background: #f1f5f9; }
-.quick-edit-badge { position: absolute; top: 10px; right: 10px; opacity: 0; transition: opacity 0.3s; z-index: 10; }
-.product-card:hover .quick-edit-badge { opacity: 1; }
-.category-badge { position: absolute; top: 10px; left: 10px; z-index: 10; }
-.visibility-toggle { position: absolute; bottom: 10px; left: 10px; z-index: 10; font-size: 0.7rem; padding: 4px 8px; }
-.preview-image { max-width: 100%; max-height: 200px; border-radius: 8px; margin-bottom: 1rem; }
-.filter-btn.active { background-color: var(--admin-accent); color: #fff; border-color: var(--admin-accent); }
-</style>
 </head>
 <body>
 
@@ -257,15 +243,17 @@ $categories = [
                             <div class="col-6 col-md-4 col-lg-3 product-item" 
                                  data-category="<?= $prod['categoryID'] ?>" 
                                  data-visible="<?= $is_visible ?>">
-                                <div class="product-card position-relative h-100" onclick="openQuickEdit(<?= htmlspecialchars(json_encode($prod)) ?>)">
+                                <div class="product-card h-100" onclick="openQuickEdit(<?= htmlspecialchars(json_encode($prod)) ?>)">
+                                    <!-- Category Badge Top Left -->
                                     <span class="badge bg-accent category-badge"><?= $category_name ?></span>
                                     
+                                    <!-- ✅ Visibility Toggle Top Right -->
                                     <?php if ($is_ulam): ?>
-                                        <form method="POST" onclick="event.stopPropagation();" class="position-absolute bottom-0 start-0 m-2 z-3">
+                                        <form method="POST" onclick="event.stopPropagation();">
                                             <input type="hidden" name="toggle_visibility" value="1">
                                             <input type="hidden" name="product_id" value="<?= $prod['productID'] ?>">
                                             <input type="hidden" name="is_visible" value="<?= $is_visible ? 0 : 1 ?>">
-                                            <button type="submit" class="btn btn-sm <?= $is_visible ? 'btn-success' : 'btn-danger' ?> visibility-toggle">
+                                            <button type="submit" class="btn btn-sm <?= $is_visible ? 'btn-success' : 'btn-danger' ?> visibility-toggle" title="<?= $is_visible ? 'Click to hide' : 'Click to show' ?>">
                                                 <i class="fas <?= $is_visible ? 'fa-eye' : 'fa-eye-slash' ?>"></i>
                                             </button>
                                         </form>
@@ -273,7 +261,7 @@ $categories = [
                                     
                                     <img src="<?= $image_src ?>" alt="<?= htmlspecialchars($prod['productname']) ?>" class="product-image">
                                     
-                                    <span class="badge bg-primary quick-edit-badge"><i class="fas fa-edit me-1"></i>Edit</span>
+                                    <span class="badge bg-primary quick-edit-badge position-absolute bottom-0 end-0 m-2"><i class="fas fa-edit me-1"></i>Edit</span>
                                     
                                     <div class="p-3 bg-white">
                                         <h6 class="fw-bold mb-1 text-truncate"><?= htmlspecialchars($prod['productname']) ?></h6>

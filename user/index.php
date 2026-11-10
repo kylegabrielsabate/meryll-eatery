@@ -60,17 +60,19 @@ if ($res) {
     }
 }
 
+// ✅ FIX 1: Exclude Tortang Talong from combo modals
 $custom_ulam_items = array_filter($ulam_items, function($item) {
-    return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice']);
+    return !in_array($item['name'], ['Hotdog', 'Egg', 'Spam', 'Longganisa', 'Breakfast Silog', 'Fried Rice', 'Tortang Talong']);
 });
 
 $meat_items = array_filter($custom_ulam_items, function($i) { return preg_match('/chicken|pork|beef|meat|adobo|bbq|tocino|longganisa|spam|hotdog/i', $i['name']); });
-$gulay_items = array_filter($custom_ulam_items, function($i) { return preg_match('/gulay|talong|sitaw|ampalaya|sayote|vegetable/i', $i['name']); });
+
+// ✅ FIX 2: Removed 'talong' from gulay regex
+$gulay_items = array_filter($custom_ulam_items, function($i) { return preg_match('/gulay|sitaw|ampalaya|sayote|vegetable|kangkong|malunggay/i', $i['name']); });
 if(empty($meat_items)) $meat_items = $custom_ulam_items;
 
 $active_cat = isset($_GET['cat']) ? $_GET['cat'] : 'all';
 
-// ✅ FIX: Added $isCandiesCategory parameter
 function renderGrid($items, $clickAction = 'qty', $isCandiesCategory = false) {
     if (empty($items)) return '<p style="color:var(--text-muted);padding:1rem;">No items available.</p>';
     $html = '<div class="image-grid">';
@@ -80,14 +82,9 @@ function renderGrid($items, $clickAction = 'qty', $isCandiesCategory = false) {
         $img = imgTag($item['folder'], $item['image']);
         $ph = 'https://via.placeholder.com/200?text=' . urlencode($item['name']);
         
-        // ✅ Check if it's candies category OR name contains Candies
         $isCandies = $isCandiesCategory || (stripos($item['name'], 'Candies') !== false);
-        
-        // Siomai uses amount modal, Candies uses qty buttons
         $action = (stripos($item['name'], 'Siomai') !== false) ? 'amount' : 'qty';
         $onclick = ($action === 'amount') ? "openCustomAmountModal(this.closest('.img-card'))" : "openQtyModal(this.closest('.img-card'))";
-        
-        // ✅ Display "₱5/4pcs" for candies
         $priceDisplay = $isCandies ? '₱5/4pcs' : '₱'.$item['price'];
         
         $html .= '
@@ -123,11 +120,8 @@ function renderGrid($items, $clickAction = 'qty', $isCandiesCategory = false) {
 :root{--brand-red:#8B0000;--brand-light:#fff0f0;--bg-light:#f8f9fa;--text-dark:#333;--text-muted:#6c757d;--sidebar-width:260px;--border-color:#e9ecef}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-height:100vh}
-
-/* ✅ SIDEBAR LOGO STYLES */
 .sidebar{width:var(--sidebar-width);background:#fff;border-right:1px solid var(--border-color);display:flex;flex-direction:column;height:100vh;position:fixed;left:0;top:0;z-index:100}
 .sidebar-logo{padding: 1.5rem; font-size: 1.2rem; font-weight: 700; color: var(--brand-red); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;}
-
 .nav-section{padding:1rem 0;flex:1;overflow-y:auto}
 .nav-link{display:flex;align-items:center;gap:12px;padding:12px 1.5rem;color:var(--text-dark);text-decoration:none;font-weight:500;font-size:.95rem;transition:all .2s;border-left:3px solid transparent}
 .nav-link:hover{background:#f8f9fa}
@@ -136,7 +130,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .nav-link.active i{color:var(--brand-red)}
 .user-section{padding:1rem 1.5rem;border-top:1px solid var(--border-color);font-size:.9rem;display:flex;align-items:center;gap:8px}
 .user-section a{color:var(--brand-red);text-decoration:none;font-weight:600;margin-left:auto}
-
 .main-content{flex:1;margin-left:var(--sidebar-width);display:flex;flex-direction:column}
 .top-header{background:#fff;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);position:sticky;top:0;z-index:50}
 .search-bar{flex:1;max-width:500px;position:relative}
@@ -144,14 +137,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .search-bar i{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--text-muted)}
 .cart-btn{background:var(--brand-red);color:#fff;border:none;width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:1.2rem;text-decoration:none}
 .cart-badge{position:absolute;top:-6px;right:-6px;background:#ffc107;color:#000;font-size:.7rem;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 5px}
-
 .content-area{flex:1;padding:2rem;overflow-y:auto}
 .page-header{margin-bottom:2rem}
 .page-header h1{font-size:1.8rem;font-weight:700;color:var(--text-dark);margin-bottom:.5rem}
 .category-section{margin-bottom:3rem}
 .category-title{font-size:1.3rem;font-weight:700;color:var(--brand-red);margin-bottom:1.5rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--border-color);padding-bottom:.5rem}
 .sub-category-title{font-size:1.1rem;font-weight:600;color:var(--text-dark);margin:1.5rem 0 1rem 0;display:flex;align-items:center;gap:8px}
-
 .rice-list{display:flex;flex-direction:column;gap:1rem;max-width:600px}
 .rice-item{display:flex;justify-content:space-between;align-items:center;padding:1.2rem;background:#fff;border-radius:10px;box-shadow:0 2px 5px rgba(0,0,0,.05);border:1px solid var(--border-color);cursor:pointer;transition:all .2s}
 .rice-item:hover{border-color:var(--brand-red);transform:translateX(5px)}
@@ -159,14 +150,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .rice-item-price{font-weight:700;color:var(--brand-red);font-size:1.2rem}
 .btn-custom-order{margin-top:2rem;background:var(--brand-red);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer;font-size:1rem;display:inline-flex;align-items:center;gap:8px}
 .btn-custom-order:hover{background:#6d0000}
-
 .image-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1.5rem}
 .img-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:transform .2s;border:1px solid var(--border-color);display:flex;flex-direction:column; height: 100%;}
 .img-card:hover{transform:translateY(-4px);box-shadow:0 8px 20px rgba(0,0,0,.12)}
 .img-card-img-wrapper{width:100%;height:160px;background:#eee;overflow:hidden;cursor:pointer}
 .img-card img{width:100%;height:100%;object-fit:cover}
-
-/* ✅ FIX: Alignment for Add to Cart button */
 .img-card-info{padding:10px;text-align:center;flex:1;display:flex;flex-direction:column;}
 .img-card-name{font-size:.9rem;font-weight:600;color:var(--text-dark);margin-bottom:5px;cursor:pointer; min-height: 40px; display: flex; align-items: center; justify-content: center;}
 .img-card-price{font-size:1rem;font-weight:700;color:var(--brand-red);margin-bottom:8px}
@@ -174,14 +162,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .qty-btn{width:28px;height:28px;border:1px solid var(--border-color);background:#fff;border-radius:6px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;color:var(--brand-red);font-weight:700}
 .qty-btn:hover{background:var(--brand-light)}
 .qty-display{font-weight:700;min-width:24px;text-align:center;font-size:.95rem}
-
-/* ✅ FIX: Push button to bottom */
 .add-btn{margin-top: auto; width:100%;padding:8px 10px;background:var(--brand-red);color:#fff;border:none;border-radius:8px;font-weight:600;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .2s}
 .add-btn:hover{background:#6d0000}
-
 .warning-banner{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:15px;color:#856404;font-size:0.9rem;display:flex;align-items:center;gap:10px}
-
-/* Modals */
 .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:1000;justify-content:center;align-items:center}
 .modal-overlay.active{display:flex}
 .modal-content{background:#fff;border-radius:16px;padding:2rem;max-width:700px;width:90%;max-height:90vh;overflow-y:auto}
@@ -221,7 +204,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 <body>
 
 <aside class="sidebar" id="sidebar">
-    <!-- ✅ LOGO RESTORED -->
     <div class="sidebar-logo"><i class="bi bi-building"></i> Meryll Eatery</div>
     <div class="nav-section">
         <a href="index.php" class="nav-link <?=$active_cat=='all'?'active':''?>"><i class="bi bi-calendar-day"></i> Today's Menu</a>
@@ -296,7 +278,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         </div>
         <?php endif; ?>
 
-        <!-- ✅ FIX: Use database items for Meryenda (includes Spaghetti, Palabok, etc.) -->
         <?php if($active_cat=='all'||$active_cat=='meryenda'): ?>
         <div class="category-section">
             <div class="category-title"><i class="bi bi-cookie"></i> Meryenda & Snacks</div>
@@ -307,7 +288,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <?php if($active_cat=='all'||$active_cat=='coffee'): ?><div class="category-section"><div class="category-title"><i class="bi bi-cup-fill"></i> Coffee</div><?=renderGrid($coffee_items)?></div><?php endif; ?>
         <?php if($active_cat=='all'||$active_cat=='drinks'): ?><div class="category-section"><div class="category-title"><i class="bi bi-cup-straw"></i> Drinks</div><?=renderGrid($drinks_items)?></div><?php endif; ?>
 
-        <!-- ✅ FIX: Use database items for Candies AND pass 'true' for isCandiesCategory -->
         <?php if($active_cat=='all'||$active_cat=='candies'): ?>
         <div class="category-section">
             <div class="category-title"><i class="bi bi-heart"></i> Candies</div>
@@ -316,7 +296,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         </div>
         <?php endif; ?>
 
-        <!-- ✅ FIX: Use database items for Noodles -->
         <?php if($active_cat=='all'||$active_cat=='noodles'): ?>
         <div class="category-section">
             <div class="category-title"><i class="bi bi-egg"></i> Noodles</div>
@@ -336,14 +315,77 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
     </div>
 </main>
 
-<!-- ============ RICE MEAL MODAL ============ -->
+<!-- ============ RICE MEAL MODAL (FIXED FOR SPLIT LAYOUT) ============ -->
 <div class="modal-overlay" id="riceMealModal">
     <div class="modal-content">
         <div class="modal-header"><h2 id="riceMealTitle">Select Your Rice Meal</h2><button class="modal-close" onclick="closeModal('riceMealModal')"><i class="bi bi-x-lg"></i></button></div>
-        <div class="modal-section"><h3>1. Choose 1-3 Ulam</h3><div class="modal-images" id="ulamSelection"><?php foreach($custom_ulam_items as $item): ?><div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleUlam(this)"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div></div><?php endforeach; ?></div></div>
-        <div class="modal-section" id="riceTypeSection"><h3>2. Choose Rice Type</h3><div class="rice-type-selector"><div class="rice-type-option selected" data-type="white" onclick="selectRiceType(this,'riceMealModal')"><div class="rice-icon">🍚</div><div class="rice-name">White Rice</div></div><div class="rice-type-option" data-type="fried" onclick="selectRiceType(this,'riceMealModal')"><div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div></div></div></div>
-        <div class="modal-section" id="drinkSelectionSection" style="display:none"><h3>3. Choose 1 Drink (Included)</h3><div class="modal-images" id="drinkSelection"><?php foreach($drinks_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleDrink(this)"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div></div><?php endforeach; ?></div></div>
-        <div class="modal-footer"><div class="modal-total" id="riceMealTotal">₱0.00</div><button class="btn-add-cart" id="btnConfirmRiceMeal" onclick="confirmRiceMeal()" disabled><i class="bi bi-cart-plus"></i> Add to Cart</button></div>
+        
+        <!-- Standard Layout (Meat to Meat) -->
+        <div class="modal-section" id="standardUlamSection">
+            <h3>1. Choose 1-3 Ulam</h3>
+            <div class="modal-images" id="ulamSelection">
+                <?php foreach($custom_ulam_items as $item): ?>
+                <div class="modal-img-option ulam-option" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleUlam(this)">
+                    <img src="<?=imgTag($item['folder'],$item['image'])?>">
+                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- Split Layout (Meat to Gulay) -->
+        <div class="modal-section" id="splitMeatSection" style="display:none;">
+            <h3>1. Select Meat (Max 2)</h3>
+            <div class="modal-images" id="splitMeatSelection">
+                <?php foreach($meat_items as $item): ?>
+                <div class="modal-img-option split-meat-opt" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleSplitUlam(this, 'meat')">
+                    <img src="<?=imgTag($item['folder'],$item['image'])?>">
+                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <div class="modal-section" id="splitGulaySection" style="display:none;">
+            <h3>2. Select Gulay (Max 2)</h3>
+            <div class="modal-images" id="splitGulaySelection">
+                <?php foreach($gulay_items as $item): ?>
+                <div class="modal-img-option split-gulay-opt" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleSplitUlam(this, 'gulay')">
+                    <img src="<?=imgTag($item['folder'],$item['image'])?>">
+                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- Rice Selection (Mandatory for Rice Meals) -->
+        <div class="modal-section" id="riceTypeSection">
+            <h3 id="riceStepTitle">2. Choose Rice Type</h3>
+            <div class="rice-type-selector">
+                <div class="rice-type-option selected" data-type="white" onclick="selectRiceType(this,'riceMealModal')">
+                    <div class="rice-icon">🍚</div><div class="rice-name">White Rice</div>
+                </div>
+                <div class="rice-type-option" data-type="fried" onclick="selectRiceType(this,'riceMealModal')">
+                    <div class="rice-icon">🍳</div><div class="rice-name">Fried Rice</div><div class="rice-stock">Limited supply</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-section" id="drinkSelectionSection" style="display:none">
+            <h3 id="drinkStepTitle">3. Choose 1 Drink (Included)</h3>
+            <div class="modal-images" id="drinkSelection">
+                <?php foreach($drinks_items as $item): ?>
+                <div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" onclick="toggleDrink(this)">
+                    <img src="<?=imgTag($item['folder'],$item['image'])?>">
+                    <div class="modal-img-name"><?=htmlspecialchars($item['name'])?></div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <div class="modal-total" id="riceMealTotal">₱0.00</div>
+            <button class="btn-add-cart" id="btnConfirmRiceMeal" onclick="confirmRiceMeal()" disabled><i class="bi bi-cart-plus"></i> Add to Cart</button>
+        </div>
     </div>
 </div>
 
@@ -354,7 +396,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         <div class="modal-section"><h3>1. Select Meat (Max 2)</h3><div class="modal-images" id="meatSelection"><?php foreach($meat_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" data-productid="<?=$item['productID']?>" onclick="toggleCustomUlam(this, 'meat')"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div></div>
         <div class="modal-section"><h3>2. Select Gulay (Max 2)</h3><div class="modal-images" id="gulaySelection"><?php foreach($gulay_items as $item): ?><div class="modal-img-option" data-name="<?=htmlspecialchars($item['name'])?>" data-price="<?=$item['price']?>" data-productid="<?=$item['productID']?>" onclick="toggleCustomUlam(this, 'gulay')"><img src="<?=imgTag($item['folder'],$item['image'])?>"><div class="modal-img-name"><?=htmlspecialchars($item['name'])?> - ₱<?=$item['price']?></div></div><?php endforeach; ?></div></div>
         
-        <!-- ✅ UPDATED: Added "No Rice" Option -->
         <div class="modal-section">
             <h3>3. Choose Rice Type (Optional)</h3>
             <div class="rice-type-selector">
@@ -413,6 +454,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 const RICE_PRICE = 15;
 const riceMeals = <?=json_encode($rice_meals_list)?>;
 let selectedUlam=[], selectedRiceType='white', selectedDrink='', currentMeal=null;
+let splitSelectedMeat=[], splitSelectedGulay=[]; // For split layout
 let selectedCustomMeat=[], selectedCustomGulay=[], customRiceType='white', selectedCustomDrink='';
 let selectedSides=[], breakfastRice='white', selectedBreakfastDrink='';
 let qtyModalCard=null, qtyModalName='', qtyModalPrice=0, qtyModalQty=1, qtyModalProductID=0;
@@ -432,7 +474,6 @@ function deductFriedRice(){ fetch('cart_actions.php',{method:'POST',headers:{'Co
 
 function changeCardQty(card, delta){ const el = card.querySelector('.qty-display'); let q = parseInt(el.textContent) || 1; el.textContent = Math.max(1, Math.min(99, q + delta)); }
 
-// ✅ UPDATED: Handle candies pricing (1 qty = 4 pcs = ₱5)
 function addFromCard(card){
     const name = card.dataset.name;
     const price = parseFloat(card.dataset.price);
@@ -441,12 +482,10 @@ function addFromCard(card){
     let qty = parseInt(card.querySelector('.qty-display').textContent) || 1;
     
     if (isCandies) {
-        // For candies: 1 quantity = 4 pieces = ₱5
         const piecesPerUnit = 4;
-        const pricePerUnit = 5; // ₱5 per 4 pieces
+        const pricePerUnit = 5;
         const totalPieces = qty * piecesPerUnit;
         const totalPrice = qty * pricePerUnit;
-        
         addToCart(name + ' (' + totalPieces + ' pcs)', totalPrice, 1, productID).then(()=>{ 
             showToast('✅ Added ' + totalPieces + ' pieces!'); 
             card.querySelector('.qty-display').textContent = 1; 
@@ -459,37 +498,109 @@ function addFromCard(card){
     }
 }
 
-// --- RICE MEAL MODAL ---
+// --- RICE MEAL MODAL (FIXED) ---
 function openRiceMealModal(index){
-    currentMeal = riceMeals[index]; selectedUlam=[]; selectedRiceType='white'; selectedDrink='';
+    currentMeal = riceMeals[index]; 
+    selectedUlam=[]; 
+    splitSelectedMeat=[];
+    splitSelectedGulay=[];
+    selectedRiceType='white'; 
+    selectedDrink='';
+    
     document.getElementById('riceMealTitle').textContent = currentMeal.name;
     document.getElementById('riceMealTotal').textContent = '₱'+currentMeal.price.toFixed(2);
     document.getElementById('btnConfirmRiceMeal').disabled = true;
-    document.querySelectorAll('#ulamSelection .ulam-option').forEach(el=>el.classList.remove('selected'));
-    document.getElementById('riceTypeSection').style.display = currentMeal.has_rice ? 'block' : 'none';
-    document.getElementById('drinkSelectionSection').style.display = currentMeal.has_drink ? 'block' : 'none';
-    document.querySelectorAll('#drinkSelection .modal-img-option').forEach(el=>el.classList.remove('selected'));
+    
+    // Reset all selections visually
+    document.querySelectorAll('#riceMealModal .modal-img-option').forEach(el=>el.classList.remove('selected'));
     document.querySelectorAll('#riceMealModal .rice-type-option').forEach(el=>el.classList.remove('selected'));
     document.querySelector('#riceMealModal .rice-type-option[data-type="white"]').classList.add('selected');
+    
+    // Toggle Layouts based on type
+    if (currentMeal.type === 'gulay') {
+        document.getElementById('standardUlamSection').style.display = 'none';
+        document.getElementById('splitMeatSection').style.display = 'block';
+        document.getElementById('splitGulaySection').style.display = 'block';
+        document.getElementById('riceStepTitle').textContent = '3. Choose Rice Type';
+        document.getElementById('drinkStepTitle').textContent = '4. Choose 1 Drink (Included)';
+    } else {
+        document.getElementById('standardUlamSection').style.display = 'block';
+        document.getElementById('splitMeatSection').style.display = 'none';
+        document.getElementById('splitGulaySection').style.display = 'none';
+        document.getElementById('riceStepTitle').textContent = '2. Choose Rice Type';
+        document.getElementById('drinkStepTitle').textContent = '3. Choose 1 Drink (Included)';
+    }
+
+    document.getElementById('riceTypeSection').style.display = currentMeal.has_rice ? 'block' : 'none';
+    document.getElementById('drinkSelectionSection').style.display = currentMeal.has_drink ? 'block' : 'none';
+    
     document.getElementById('riceMealModal').classList.add('active');
 }
+
 function toggleUlam(el){
     const name = el.dataset.name;
     if(el.classList.contains('selected')){ el.classList.remove('selected'); selectedUlam=selectedUlam.filter(n=>n!==name); }
     else{ if(selectedUlam.length<3){ el.classList.add('selected'); selectedUlam.push(name); } else showToast('Max 3 ulam!'); }
     checkRiceReady();
 }
+
+// New function for split layout
+function toggleSplitUlam(el, type) {
+    const name = el.dataset.name;
+    let list = type === 'meat' ? splitSelectedMeat : splitSelectedGulay;
+    
+    if(el.classList.contains('selected')){ 
+        el.classList.remove('selected'); 
+        if(type==='meat') splitSelectedMeat = splitSelectedMeat.filter(n=>n!==name);
+        else splitSelectedGulay = splitSelectedGulay.filter(n=>n!==name);
+    } else {
+        if(list.length < 2){ 
+            el.classList.add('selected'); 
+            list.push(name); 
+        } else {
+            showToast('Max 2 items per category!');
+        }
+    }
+    checkRiceReady();
+}
+
 function toggleDrink(el){ document.querySelectorAll('#drinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); selectedDrink = el.dataset.name; checkRiceReady(); }
 function selectRiceType(el, modalId){ selectedRiceType = el.dataset.type; document.querySelectorAll('#'+modalId+' .rice-type-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); }
-function checkRiceReady(){ let ready = selectedUlam.length>0; if(currentMeal && currentMeal.has_drink) ready = ready && selectedDrink!==''; document.getElementById('btnConfirmRiceMeal').disabled = !ready; }
+
+function checkRiceReady(){ 
+    let ready = false;
+    if (currentMeal && currentMeal.type === 'gulay') {
+        ready = (splitSelectedMeat.length > 0 || splitSelectedGulay.length > 0);
+    } else {
+        ready = selectedUlam.length > 0;
+    }
+    
+    if(currentMeal && currentMeal.has_drink) {
+        ready = ready && selectedDrink !== '';
+    }
+    
+    document.getElementById('btnConfirmRiceMeal').disabled = !ready; 
+}
+
 function confirmRiceMeal(){
-    if(selectedUlam.length===0) return;
-    let desc = currentMeal.name+' ('+selectedUlam.join(', ');
-    if (currentMeal.has_rice) desc += ', '+(selectedRiceType==='fried'?'Fried Rice':'White Rice');
-    if (currentMeal.has_drink && selectedDrink) desc += ', '+selectedDrink; desc += ')';
+    let items = [];
+    if (currentMeal.type === 'gulay') {
+        if (splitSelectedMeat.length === 0 && splitSelectedGulay.length === 0) return;
+        items = [...splitSelectedMeat, ...splitSelectedGulay];
+    } else {
+        if (selectedUlam.length === 0) return;
+        items = selectedUlam;
+    }
+    
+    let desc = currentMeal.name + ' (' + items.join(', ');
+    if (currentMeal.has_rice) desc += ', ' + (selectedRiceType==='fried'?'Fried Rice':'White Rice');
+    if (currentMeal.has_drink && selectedDrink) desc += ', ' + selectedDrink; 
+    desc += ')';
+    
     addToCart(desc, currentMeal.price, 1, 0);
     if (currentMeal.has_rice && selectedRiceType==='fried') deductFriedRice();
-    closeModal('riceMealModal'); showToast('✅ Added!');
+    closeModal('riceMealModal'); 
+    showToast('✅ Added!');
 }
 
 // --- CUSTOM ORDER (SEPARATED MEAT & GULAY) ---
@@ -521,7 +632,6 @@ function toggleCustomUlam(el, type){
 function toggleCustomDrink(el){ document.querySelectorAll('#customDrinkSelection .modal-img-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); selectedCustomDrink = { name: el.dataset.name, price: parseFloat(el.dataset.price) }; updateCustomTotal(); }
 function skipCustomDrink(){ selectedCustomDrink = ''; updateCustomTotal(); confirmCustomOrder(); }
 
-// ✅ UPDATED: Only adds rice price if "No Rice" is NOT selected
 function updateCustomTotal(){ 
     let total = 0;
     if (customRiceType !== 'none') { total += RICE_PRICE; }
@@ -532,7 +642,6 @@ function updateCustomTotal(){
 
 function selectCustomRiceType(el){ customRiceType = el.dataset.type; document.querySelectorAll('#customOrderModal .rice-type-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); updateCustomTotal(); }
 
-// ✅ UPDATED: Adjusts description and total if "No Rice" is selected
 function confirmCustomOrder(){
     if((selectedCustomMeat.length + selectedCustomGulay.length)===0) return;
     let allItems = [...selectedCustomMeat, ...selectedCustomGulay];
