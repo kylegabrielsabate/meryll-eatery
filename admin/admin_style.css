@@ -1,5 +1,5 @@
 /* ============================================
-   KUYA BATAS ADMIN - NUCLEAR TABLE FIX + USERS
+   KUYA BATAS ADMIN - FINAL FIX
    ============================================ */
 
 :root {
@@ -80,19 +80,28 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--admin-bg)
 .camera-btn:hover { background: var(--admin-accent-hover); }
 #cameraInput { display: none; }
 
-.admin-card { background: var(--admin-card); border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 1.5rem; overflow: hidden; }
+/* ✅ FIXED CARD STYLING */
+.admin-card { 
+    background: var(--admin-card); 
+    border-radius: 16px; 
+    padding: 1.5rem; 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); 
+    margin-bottom: 1.5rem; 
+    overflow: hidden; /* Default for non-table cards */
+}
+/* ✅ SPECIAL CLASS FOR CARDS WITH TABLES TO ALLOW SCROLLING */
+.admin-card.card-no-overflow {
+    overflow: visible !important;
+}
+
 .admin-card h3 { font-size: 1.1rem; font-weight: 700; color: var(--admin-text); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px; }
 .admin-card h3 i { color: var(--admin-accent); }
 
-/* ✅ NUCLEAR TABLE SCROLL FIX */
-.table-scroll-wrapper {
-    position: relative;
-    width: calc(100% + 3rem);
-    margin-left: -1.5rem;
-    margin-right: -1.5rem;
-    overflow-x: auto !important;
+/* ✅ SIMPLE TABLE SCROLL FIX */
+.table-scroll-container {
+    width: 100%;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 0 1.5rem;
 }
 
 .data-table { 
@@ -203,8 +212,8 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--admin-bg)
     .camera-upload-area { padding: 1.5rem; }
     
     /* ✅ ENSURE TABLES SCROLL ON MOBILE */
-    .admin-card { overflow: visible !important; }
-    .table-scroll-wrapper { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+    .admin-card.card-no-overflow { overflow: visible !important; }
+    .table-scroll-container { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
     .data-table { min-width: 700px !important; }
 }
 

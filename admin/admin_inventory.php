@@ -91,9 +91,9 @@ $products = $con->query($sql);
                 </div>
             </div>
 
-            <div class="admin-card" style="padding: 0;">
-                <!-- ✅ USE table-scroll-wrapper HERE -->
-                <div class="table-scroll-wrapper">
+            <!-- ✅ USE card-no-overflow HERE -->
+            <div class="admin-card card-no-overflow" style="padding: 0;">
+                <div class="table-scroll-container">
                     <table class="data-table" style="width: 100%; border-collapse: collapse;">
                         <thead><tr><th>ID</th><th>Product Name</th><th>Category</th><th>Unit</th><th>Price</th><th>Stock</th><th>Status</th><th style="text-align: center;">Actions</th></tr></thead>
                         <tbody>

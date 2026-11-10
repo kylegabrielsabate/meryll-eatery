@@ -10,6 +10,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 // Handle user deletion
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
     $user_id = (int)$_POST['user_id'];
+    // Prevent deleting admins
     $stmt = $con->prepare("DELETE FROM users WHERE user_id = ? AND role != 'admin'");
     $stmt->bind_param("i", $user_id);
     if ($stmt->execute()) {
@@ -23,15 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
 $sort = $_GET['sort'] ?? 'all';
 $search = isset($_GET['search']) ? $con->real_escape_string(trim($_GET['search'])) : '';
 
-// Build query based on sort
-$sql = "SELECT user_id, username, email, student_id, role, created_at FROM users WHERE role IN ('user', 'instructor')";
+// ✅ ROBUST QUERY: Fetch all non-admin users
+$sql = "SELECT user_id, username, email, student_id, role, created_at FROM users WHERE role != 'admin'";
 
-if ($sort === 'student') {
-    $sql .= " AND student_id LIKE 'E%'";
-} elseif ($sort === 'instructor') {
-    $sql .= " AND student_id LIKE 'TAG-%'";
-}
-
+// Apply search if exists
 if (!empty($search)) {
     $sql .= " AND (username LIKE '%$search%' OR email LIKE '%$search%' OR student_id LIKE '%$search%')";
 }
@@ -39,9 +35,9 @@ if (!empty($search)) {
 $sql .= " ORDER BY created_at DESC";
 $users = $con->query($sql);
 
-// Count totals
-$total_students = $con->query("SELECT COUNT(*) as count FROM users WHERE role = 'user' AND student_id LIKE 'E%'")->fetch_assoc()['count'];
-$total_instructors = $con->query("SELECT COUNT(*) as count FROM users WHERE role = 'instructor' OR student_id LIKE 'TAG-%'")->fetch_assoc()['count'];
+// Count totals safely
+$total_students = $con->query("SELECT COUNT(*) as count FROM users WHERE role = 'user'")->fetch_assoc()['count'] ?? 0;
+$total_instructors = $con->query("SELECT COUNT(*) as count FROM users WHERE role = 'instructor'")->fetch_assoc()['count'] ?? 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -116,8 +112,9 @@ $total_instructors = $con->query("SELECT COUNT(*) as count FROM users WHERE role
         </div>
 
         <!-- Users Table -->
-        <div class="admin-card" style="padding: 0;">
-            <div class="table-scroll-wrapper">
+        <!-- ✅ USE card-no-overflow HERE -->
+        <div class="admin-card card-no-overflow" style="padding: 0;">
+            <div class="table-scroll-container">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -133,7 +130,8 @@ $total_instructors = $con->query("SELECT COUNT(*) as count FROM users WHERE role
                     <tbody>
                         <?php if ($users && $users->num_rows > 0): ?>
                             <?php while($user = $users->fetch_assoc()): 
-                                $is_student = (strpos($user['student_id'], 'E') === 0);
+                                // Determine type based on role or ID pattern
+                                $is_student = ($user['role'] === 'user');
                                 $type_class = $is_student ? 'user-type-student' : 'user-type-instructor';
                                 $type_label = $is_student ? 'Student' : 'Instructor';
                             ?>
@@ -141,7 +139,7 @@ $total_instructors = $con->query("SELECT COUNT(*) as count FROM users WHERE role
                                     <td style="font-weight: 700;">#<?php echo $user['user_id']; ?></td>
                                     <td style="font-weight: 600;"><?php echo htmlspecialchars($user['username']); ?></td>
                                     <td><?php echo htmlspecialchars($user['email']); ?></td>
-                                    <td><?php echo htmlspecialchars($user['student_id']); ?></td>
+                                    <td><?php echo htmlspecialchars($user['student_id'] ?? 'N/A'); ?></td>
                                     <td><span class="user-type-badge <?php echo $type_class; ?>"><?php echo $type_label; ?></span></td>
                                     <td><?php echo date('M j, Y', strtotime($user['created_at'])); ?></td>
                                     <td>

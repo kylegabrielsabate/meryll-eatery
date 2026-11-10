@@ -67,11 +67,11 @@ $top_items_report = $con->query("
                 <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Print Report</button>
             </div>
 
-            <div class="admin-card">
+            <!-- ✅ USE card-no-overflow HERE -->
+            <div class="admin-card card-no-overflow">
                 <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-trophy" style="color:#8B0000;"></i> Top 5 Most Sold Items</h3>
                 <?php if ($top_items_report && $top_items_report->num_rows > 0): ?>
-                    <!-- ✅ USE table-scroll-wrapper HERE -->
-                    <div class="table-scroll-wrapper">
+                    <div class="table-scroll-container">
                         <table class="data-table">
                             <thead><tr><th>Rank</th><th>Item Name</th><th>Total Quantity Sold</th><th>Total Revenue</th></tr></thead>
                             <tbody>
@@ -91,13 +91,13 @@ $top_items_report = $con->query("
                 <?php endif; ?>
             </div>
 
-            <div class="admin-card">
+            <!-- ✅ USE card-no-overflow HERE -->
+            <div class="admin-card card-no-overflow">
                 <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-calendar-alt" style="color:#8B0000;"></i> Sales Breakdown by Month</h3>
                 <?php if (empty($monthly_data)): ?>
                     <p style="text-align: center; color: #94a3b8; padding: 2rem;">No order data available yet.</p>
                 <?php else: ?>
-                    <!-- ✅ USE table-scroll-wrapper HERE -->
-                    <div class="table-scroll-wrapper">
+                    <div class="table-scroll-container">
                         <table class="data-table">
                             <thead><tr><th>Month / Year</th><th>Total Orders</th><th>Total Revenue</th></tr></thead>
                             <tbody>

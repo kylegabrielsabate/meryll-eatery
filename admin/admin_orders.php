@@ -52,9 +52,9 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
                 <div><h1>Order Management</h1><p style="color: var(--admin-text-muted, #64748b);">View, update, and track all customer orders.</p></div>
             </div>
 
-            <div class="admin-card" style="padding: 0;">
-                <!-- ✅ USE table-scroll-wrapper HERE -->
-                <div class="table-scroll-wrapper">
+            <!-- ✅ USE card-no-overflow HERE -->
+            <div class="admin-card card-no-overflow" style="padding: 0;">
+                <div class="table-scroll-container">
                     <table class="data-table" style="width: 100%; border-collapse: collapse;">
                         <thead><tr><th>Order #</th><th>Customer</th><th>Type</th><th>Time</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody>
