@@ -19,11 +19,6 @@ if (!isset($_SESSION['fried_rice_stock'])) { $_SESSION['fried_rice_stock'] = 20;
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
-// ✅ RESEND API KEY (Replace with your actual Resend API Key)
-// You can find this in your Resend dashboard: https://resend.com/api-keys
-$RESEND_API_KEY = getenv('RESEND_API_KEY') ?: 're_PLACEHOLDER'; 
-$RESEND_FROM_EMAIL = getenv('RESEND_FROM_EMAIL') ?: 'onboarding@resend.dev';
-
 function loadCartFromDB($con, $user_id) {
     $uid = (int)$user_id;
     $stmt = $con->prepare("SELECT cart_data FROM users WHERE user_id = ?");
@@ -62,9 +57,21 @@ function checkItemAvailability($con, $cart) {
     return $unavailable;
 }
 
-function cartTotalItems($cart) { $total = 0; foreach ($cart as $item) $total += $item['quantity']; return $total; }
-function cartTotalPrice($cart) { $total = 0; foreach ($cart as $item) $total += ($item['price'] * $item['quantity']); return $total; }
-function isValidKey($key) { return preg_match('/^[a-f0-9]{32}$/', $key); }
+function cartTotalItems($cart) { 
+    $total = 0; 
+    foreach ($cart as $item) $total += $item['quantity']; 
+    return $total; 
+}
+
+function cartTotalPrice($cart) { 
+    $total = 0; 
+    foreach ($cart as $item) $total += ($item['price'] * $item['quantity']); 
+    return $total; 
+}
+
+function isValidKey($key) { 
+    return preg_match('/^[a-f0-9]{32}$/', $key); 
+}
 
 function generateOrderNumber($con) {
     $date = date('Ymd');
@@ -75,9 +82,8 @@ function generateOrderNumber($con) {
     return $prefix . str_pad($count, 3, '0', STR_PAD_LEFT);
 }
 
-// ✅ FUNCTION TO SEND EMAIL RECEIPT VIA RESEND
-function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $cart_items, $api_key, $from_email) {
-    // 1. Get User Email
+// Send receipt email via Resend
+function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $cart_items) {
     $stmt = $con->prepare("SELECT email, username FROM users WHERE user_id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -85,68 +91,55 @@ function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_t
     
     if (!$user || empty($user['email'])) return false;
 
-    // 2. Build HTML Receipt
     $items_html = '';
     foreach ($cart_items as $item) {
-        $items_html .= '<tr>
-            <td style="padding: 12px; border-bottom: 1px solid #eee;">' . htmlspecialchars($item['name']) . '</td>
-            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">' . $item['quantity'] . '</td>
-            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">₱' . number_format($item['price'], 2) . '</td>
-            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right; font-weight: 600;">₱' . number_format($item['price'] * $item['quantity'], 2) . '</td>
-        </tr>';
+        $items_html .= '<tr><td style="padding:8px;border-bottom:1px solid #eee">'.htmlspecialchars($item['name']).'</td>';
+        $items_html .= '<td style="padding:8px;border-bottom:1px solid #eee;text-align:center">'.$item['quantity'].'</td>';
+        $items_html .= '<td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₱'.number_format($item['price'], 2).'</td>';
+        $items_html .= '<td style="padding:8px;border-bottom:1px solid #eee;text-align:right;font-weight:600">₱'.number_format($item['price'] * $item['quantity'], 2).'</td></tr>';
     }
 
     $html_body = "
-    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #8B0000; border-radius: 10px; overflow: hidden;'>
-        <div style='background: #8B0000; color: white; padding: 25px; text-align: center;'>
-            <h1 style='margin: 0; font-size: 28px;'>🍽️ Meryll Eatery</h1>
-            <p style='margin: 10px 0 0 0; font-size: 16px;'>Order Receipt</p>
+    <div style='font-family:Arial,sans-serif;max-width:600px;margin:auto;border:2px solid #8B0000;border-radius:10px;overflow:hidden'>
+        <div style='background:#8B0000;color:#fff;padding:20px;text-align:center'>
+            <h1 style='margin:0'>🍽️ Meryll Eatery</h1>
+            <p style='margin:5px 0 0 0'>Order Receipt</p>
         </div>
-        <div style='padding: 25px;'>
-            <p style='font-size: 16px;'>Hello <strong>" . htmlspecialchars($user['username']) . "</strong>,</p>
-            <p style='font-size: 14px; color: #555;'>Thank you for your order! Please show this receipt when claiming your food.</p>
+        <div style='padding:20px'>
+            <p>Hello <strong>".htmlspecialchars($user['username'])."</strong>,</p>
+            <p>Thank you for your order! Here are your order details:</p>
             
-            <div style='background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8B0000;'>
-                <p style='margin: 8px 0;'><strong>Order #:</strong> " . htmlspecialchars($order_number) . "</p>
-                <p style='margin: 8px 0;'><strong>Date:</strong> " . date('F j, Y \a\t g:i A') . "</p>
-                <p style='margin: 8px 0;'><strong>Order Type:</strong> " . htmlspecialchars($order_type) . "</p>
-                <p style='margin: 8px 0;'><strong>Pickup Time:</strong> " . htmlspecialchars($pickup_time) . "</p>
-                " . (!empty($order_note) ? "<p style='margin: 8px 0;'><strong>Note:</strong> " . htmlspecialchars($order_note) . "</p>" : "") . "
+            <div style='background:#f9f9f9;padding:15px;border-radius:8px;margin:20px 0'>
+                <p><strong>Order #:</strong> ".htmlspecialchars($order_number)."</p>
+                <p><strong>Date:</strong> ".date('F j, Y \a\t g:i A')."</p>
+                <p><strong>Type:</strong> ".htmlspecialchars($order_type)."</p>
+                <p><strong>Pickup Time:</strong> ".htmlspecialchars($pickup_time)."</p>
             </div>
 
-            <table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>
-                <thead>
-                    <tr style='background: #f4f4f4;'>
-                        <th style='padding: 12px; text-align: left; border-bottom: 2px solid #ddd;'>Item</th>
-                        <th style='padding: 12px; text-align: center; border-bottom: 2px solid #ddd;'>Qty</th>
-                        <th style='padding: 12px; text-align: right; border-bottom: 2px solid #ddd;'>Price</th>
-                        <th style='padding: 12px; text-align: right; border-bottom: 2px solid #ddd;'>Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    $items_html
-                </tbody>
+            <table style='width:100%;border-collapse:collapse;margin:20px 0'>
+                <thead><tr style='background:#f4f4f4'>
+                    <th style='padding:10px;text-align:left'>Item</th>
+                    <th style='padding:10px;text-align:center'>Qty</th>
+                    <th style='padding:10px;text-align:right'>Price</th>
+                    <th style='padding:10px;text-align:right'>Subtotal</th>
+                </tr></thead>
+                <tbody>$items_html</tbody>
                 <tfoot>
-                    <tr>
-                        <td colspan='3' style='padding: 15px 10px; text-align: right; font-weight: bold; font-size: 18px; border-top: 2px solid #8B0000;'>Total:</td>
-                        <td style='padding: 15px 10px; text-align: right; font-weight: bold; font-size: 18px; color: #8B0000; border-top: 2px solid #8B0000;'>₱" . number_format($total_amount, 2) . "</td>
-                    </tr>
+                    <tr><td colspan='3' style='padding:15px 10px;text-align:right;font-weight:bold;font-size:1.2em'>Total:</td>
+                    <td style='padding:15px 10px;text-align:right;font-weight:bold;font-size:1.2em;color:#8B0000'>₱".number_format($total_amount, 2)."</td></tr>
                 </tfoot>
             </table>
             
-            <div style='text-align: center; margin-top: 30px; padding: 20px; background: #fff0f0; border-radius: 8px;'>
-                <p style='margin: 0; color: #8B0000; font-size: 16px; font-weight: 600;'>See you at Meryll Eatery! 🎉</p>
-            </div>
+            <p style='text-align:center;margin-top:30px;color:#666'>See you at Meryll Eatery! 🎉</p>
         </div>
     </div>";
 
-    // 3. Send via Resend API using cURL
     $url = 'https://api.resend.com/emails';
     $payload = json_encode([
-        'from'    => 'Meryll Eatery <' . $from_email . '>',
-        'to'      => [$user['email']],
+        'from' => 'Meryll Eatery <'.getenv('RESEND_FROM_EMAIL').'>',
+        'to' => [$user['email']],
         'subject' => 'Order Confirmation #' . $order_number . ' - Meryll Eatery',
-        'html'    => $html_body
+        'html' => $html_body
     ]);
 
     $ch = curl_init($url);
@@ -154,16 +147,24 @@ function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_t
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $api_key,
+        'Authorization: Bearer ' . getenv('RESEND_API_KEY'),
         'Content-Type: application/json'
     ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
     $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    // Return true if Resend accepted it (200 or 201)
-    return ($http_code >= 200 && $http_code < 300);
+    return ($httpCode >= 200 && $httpCode < 300);
+}
+
+// Create admin notification
+function createAdminNotification($con, $order_id, $order_number, $total_amount, $order_type) {
+    $message = "New order #$order_number - $order_type - ₱".number_format($total_amount, 2);
+    $stmt = $con->prepare("INSERT INTO notifications (admin_id, title, message, type) VALUES (1, 'New Order Received', ?, 'order')");
+    $stmt->bind_param("s", $message);
+    $stmt->execute();
 }
 
 switch ($action) {
@@ -173,11 +174,20 @@ switch ($action) {
         $qty   = intval($_POST['quantity'] ?? 1);
         $productID = intval($_POST['productID'] ?? 0);
         if ($qty < 1) $qty = 1;
-        if (empty($name) || $price <= 0) { echo json_encode(['success' => false, 'message' => 'Invalid item.']); exit(); }
+        if (empty($name) || $price <= 0) { 
+            echo json_encode(['success' => false, 'message' => 'Invalid item.']); 
+            exit(); 
+        }
 
         $cartKey = md5($name . $price);
         if (!isset($_SESSION['cart'][$cartKey])) {
-            $_SESSION['cart'][$cartKey] = ['productID' => $productID, 'name' => $name, 'price' => $price, 'quantity' => 0, 'is_available' => 1];
+            $_SESSION['cart'][$cartKey] = [
+                'productID' => $productID, 
+                'name' => $name, 
+                'price' => $price, 
+                'quantity' => 0, 
+                'is_available' => 1
+            ];
         }
         $_SESSION['cart'][$cartKey]['quantity'] += $qty;
         saveCartToDB($con, $user_id, $_SESSION['cart']);
@@ -185,7 +195,8 @@ switch ($action) {
         break;
 
     case 'update':
-        $cartKey = $_POST['cart_key'] ?? ''; $change = intval($_POST['change'] ?? 0);
+        $cartKey = $_POST['cart_key'] ?? ''; 
+        $change = intval($_POST['change'] ?? 0);
         if (isValidKey($cartKey) && isset($_SESSION['cart'][$cartKey])) {
             $_SESSION['cart'][$cartKey]['quantity'] += $change;
             if ($_SESSION['cart'][$cartKey]['quantity'] <= 0) unset($_SESSION['cart'][$cartKey]);
@@ -202,61 +213,122 @@ switch ($action) {
         break;
 
     case 'get':
-        $_SESSION['cart'] = []; loadCartFromDB($con, $user_id);
+        $_SESSION['cart'] = []; 
+        loadCartFromDB($con, $user_id);
         $unavailable = checkItemAvailability($con, $_SESSION['cart']);
         $items = [];
         foreach ($_SESSION['cart'] as $key => $item) {
-            $items[] = ['cart_key' => $key, 'productID' => $item['productID'], 'name' => $item['name'], 'price' => $item['price'], 'quantity' => $item['quantity'], 'subtotal' => $item['price'] * $item['quantity'], 'is_available' => !isset($unavailable[$key])];
+            $items[] = [
+                'cart_key' => $key, 
+                'productID' => $item['productID'], 
+                'name' => $item['name'], 
+                'price' => $item['price'], 
+                'quantity' => $item['quantity'], 
+                'subtotal' => $item['price'] * $item['quantity'], 
+                'is_available' => !isset($unavailable[$key])
+            ];
         }
-        echo json_encode(['success' => true, 'items' => $items, 'total_items' => cartTotalItems($_SESSION['cart']), 'total_price' => cartTotalPrice($_SESSION['cart']), 'unavailable' => $unavailable]);
+        echo json_encode([
+            'success' => true, 
+            'items' => $items, 
+            'total_items' => cartTotalItems($_SESSION['cart']), 
+            'total_price' => cartTotalPrice($_SESSION['cart']), 
+            'unavailable' => $unavailable
+        ]);
         break;
 
     case 'clear':
-        $_SESSION['cart'] = []; saveCartToDB($con, $user_id, []);
+        $_SESSION['cart'] = []; 
+        saveCartToDB($con, $user_id, []);
         echo json_encode(['success' => true]);
         break;
 
     case 'deduct_fried_rice':
-        if ($_SESSION['fried_rice_stock'] > 0) { $_SESSION['fried_rice_stock']--; echo json_encode(['success' => true]); }
-        else { echo json_encode(['success' => false]); }
+        if ($_SESSION['fried_rice_stock'] > 0) { 
+            $_SESSION['fried_rice_stock']--; 
+            echo json_encode(['success' => true]); 
+        } else { 
+            echo json_encode(['success' => false]); 
+        }
         break;
 
-    // ... (Keep all the top functions: loadCartFromDB, saveCartToDB, etc.) ...
-
     case 'checkout':
-        $_SESSION['cart'] = []; loadCartFromDB($con, $user_id);
-        if (empty($_SESSION['cart'])) { echo json_encode(['success' => false, 'message' => 'Your cart is empty.']); exit(); }
+        $_SESSION['cart'] = []; 
+        loadCartFromDB($con, $user_id);
+        
+        if (empty($_SESSION['cart'])) { 
+            echo json_encode(['success' => false, 'message' => 'Your cart is empty.']); 
+            exit(); 
+        }
+
+        $unavailable = checkItemAvailability($con, $_SESSION['cart']);
+        if (!empty($unavailable)) { 
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Some items are no longer available: ' . implode(', ', $unavailable)
+            ]); 
+            exit(); 
+        }
 
         $total_amount = cartTotalPrice($_SESSION['cart']);
         $status = 'Pending';
         $order_type_raw = $_POST['order_type'] ?? 'Pick-up';
         $order_type = ($order_type_raw === 'Delivery') ? 'Delivered' : $order_type_raw;
-        
-        // ✅ NEW: Get Payment Method
-        $payment_method = $_POST['payment_method'] ?? 'Cash'; 
-        
+        $payment_method = $_POST['payment_method'] ?? 'Cash';
         $pickup_time = $_POST['pickup_time'] ?? '';
         $order_note = $_POST['order_note'] ?? '';
         $order_number = generateOrderNumber($con);
 
         try {
             $con->begin_transaction();
+            
             $maxOrderId = 0;
             $res = $con->query("SELECT MAX(order_id) as max_id FROM orders");
             if ($row = $res->fetch_assoc()) $maxOrderId = $row['max_id'] ? $row['max_id'] : 0;
             $newOrderId = $maxOrderId + 1;
 
-            // ✅ UPDATED: Insert with payment_method (Make sure your 'orders' table has a 'payment_method' column. If not, run: ALTER TABLE orders ADD COLUMN payment_method VARCHAR(20) DEFAULT 'Cash';)
             $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, payment_method, pickup_time, order_note, total_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
             if (!$stmt) throw new Exception("Prepare failed: " . $con->error);
             $stmt->bind_param("iissssdss", $newOrderId, $user_id, $order_number, $order_type, $payment_method, $pickup_time, $order_note, $total_amount, $status);
             $stmt->execute();
 
-            // ... (Keep the rest of the order_items insertion and email sending logic exactly as it was) ...
+            // Add to order_status table
+            $stmt = $con->prepare("INSERT INTO order_status (order_id, status) VALUES (?, 'Pending')");
+            $stmt->bind_param("i", $newOrderId);
+            $stmt->execute();
+
+            $maxItemId = 0;
+            $res2 = $con->query("SELECT MAX(order_item_id) as max_id FROM order_items");
+            if ($row2 = $res2->fetch_assoc()) $maxItemId = $row2['max_id'] ? $row2['max_id'] : 0;
+            $newItemId = $maxItemId + 1;
+
+            $stmt_item = $con->prepare("INSERT INTO order_items (order_item_id, order_id, item_name, quantity, price) VALUES (?, ?, ?, ?, ?)");
+            if (!$stmt_item) throw new Exception("Prepare items failed: " . $con->error);
+            
+            foreach ($_SESSION['cart'] as $item) {
+                $stmt_item->bind_param("iisdd", $newItemId, $newOrderId, $item['name'], $item['quantity'], $item['price']);
+                $stmt_item->execute();
+                $newItemId++;
+            }
             
             $con->commit();
-            $_SESSION['cart'] = []; saveCartToDB($con, $user_id, []);
-            echo json_encode(['success' => true, 'message' => 'Order placed! Order #' . $order_number, 'order_id' => $newOrderId]);
+            
+            // Send email receipt
+            sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_type, $pickup_time, $order_note, $_SESSION['cart']);
+            
+            // Create admin notification
+            createAdminNotification($con, $newOrderId, $order_number, $total_amount, $order_type);
+
+            $_SESSION['cart'] = []; 
+            saveCartToDB($con, $user_id, []);
+
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Order placed successfully! Receipt sent to your email.', 
+                'order_id' => $newOrderId,
+                'order_number' => $order_number,
+                'redirect' => 'receipt.php?order_id=' . $newOrderId
+            ]);
 
         } catch (Exception $e) {
             if ($con) $con->rollback();
