@@ -10,8 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
-    $student_id = trim($_POST['student_id'] ?? '');
-    $user_type = $_POST['user_type'] ?? 'student'; // 'student' or 'instructor'
+    $student_id = strtoupper(trim($_POST['student_id'] ?? '')); // Force uppercase for consistency
+    $user_type = $_POST['user_type'] ?? 'student';
     
     // Validation
     if (empty($username) || empty($email) || empty($password) || empty($student_id)) {
@@ -23,32 +23,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($password !== $confirm_password) {
         $error = 'Passwords do not match.';
     } else {
-        // ✅ Validate ID format based on user type
-        if ($user_type === 'instructor') {
-            // Instructor ID format: TAG-123
-            if (!preg_match('/^TAG-\d{2,4}$/i', $student_id)) {
-                $error = 'Instructor ID must be in format: TAG-123';
+        // ✅ FIX 3: STRICT DUPLICATE CHECK
+        // Check BOTH email AND student_id independently
+        $stmt = $con->prepare("SELECT user_id FROM users WHERE email = ? OR student_id = ?");
+        $stmt->bind_param("ss", $email, $student_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $existing = $result->fetch_assoc();
+            // Check which one caused the conflict
+            $check_email = $con->prepare("SELECT user_id FROM users WHERE email = ?");
+            $check_email->bind_param("s", $email);
+            $check_email->execute();
+            
+            if ($check_email->get_result()->num_rows > 0) {
+                $error = 'This email is already registered.';
+            } else {
+                $error = 'This ID number (' . htmlspecialchars($student_id) . ') is already registered.';
             }
         } else {
-            // Student ID format: E24-00123 or similar
-            if (!preg_match('/^[A-Z]\d{2}-\d{5,}$/i', $student_id)) {
-                $error = 'Student ID must be in format: E24-00123';
-            }
-        }
-        
-        if (empty($error)) {
-            // Check if email or ID already exists
-            $stmt = $con->prepare("SELECT user_id FROM users WHERE email = ? OR student_id = ?");
-            $stmt->bind_param("ss", $email, $student_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            if ($result->num_rows > 0) {
-                $error = 'Email or ID already registered.';
+            // ✅ FIX 4: VALIDATE ID FORMAT BEFORE INSERT
+            $valid_id = false;
+            if ($user_type === 'instructor') {
+                if (preg_match('/^TAG-\d{2,4}$/i', $student_id)) $valid_id = true;
+                else $error = 'Instructor ID must be in format: TAG-123';
             } else {
-                // Create account
+                // Accept E24-00123 or similar student formats
+                if (preg_match('/^[A-Z]\d{2}-\d{3,}$/i', $student_id)) $valid_id = true;
+                else $error = 'Student ID must be in format: E24-00123';
+            }
+            
+            if (!$error && $valid_id) {
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $role = 'user'; // Default role
+                $role = 'user'; // Default role for both, we distinguish by ID format
                 
                 $stmt = $con->prepare("INSERT INTO users (username, email, password, student_id, role, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
                 $stmt->bind_param("sssss", $username, $email, $hashed_password, $student_id, $role);
@@ -63,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+<!-- ... Rest of your HTML form remains the same ... -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

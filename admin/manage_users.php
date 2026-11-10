@@ -7,22 +7,37 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') { header('Loc
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
     $stmt = $con->prepare("DELETE FROM users WHERE user_id = ? AND role != 'admin'");
     $stmt->bind_param("i", $_POST['user_id']);
-    $stmt->execute();
-    $msg = "User deleted!";
+    if($stmt->execute()) $msg = "User deleted!";
 }
 
 $sort = $_GET['sort'] ?? 'all';
 $search = $_GET['search'] ?? '';
 
-$sql = "SELECT * FROM users WHERE role != 'admin'";
-if ($sort === 'student') $sql .= " AND role = 'user'";
-elseif ($sort === 'instructor') $sql .= " AND role = 'instructor'";
-if ($search) $sql .= " AND (username LIKE '%$search%' OR email LIKE '%$search%')";
+// ✅ FIX 1: ROBUST QUERY LOGIC
+// We use the same logic for counting as we do for the table to ensure they match
+$sql_base = "SELECT * FROM users WHERE role != 'admin'";
+$count_student_sql = "SELECT COUNT(*) as c FROM users WHERE role != 'admin' AND (student_id LIKE 'E%' OR student_id REGEXP '^[A-Z][0-9]{2}-[0-9]+$')";
+$count_instructor_sql = "SELECT COUNT(*) as c FROM users WHERE role != 'admin' AND (student_id LIKE 'TAG-%' OR role = 'instructor')";
+
+// Apply search to counts if needed (optional, but keeps it consistent)
+// For now, let's keep counts global so admin sees total registered users
+
+$total_students = $con->query($count_student_sql)->fetch_assoc()['c'] ?? 0;
+$total_instructors = $con->query($count_instructor_sql)->fetch_assoc()['c'] ?? 0;
+
+// Build main query
+$sql = $sql_base;
+if ($sort === 'student') {
+    $sql .= " AND (student_id LIKE 'E%' OR student_id REGEXP '^[A-Z][0-9]{2}-[0-9]+$')";
+} elseif ($sort === 'instructor') {
+    $sql .= " AND (student_id LIKE 'TAG-%' OR role = 'instructor')";
+}
+
+if ($search) {
+    $sql .= " AND (username LIKE '%$search%' OR email LIKE '%$search%' OR student_id LIKE '%$search%')";
+}
 $sql .= " ORDER BY created_at DESC";
 $users = $con->query($sql);
-
-$total_students = $con->query("SELECT COUNT(*) c FROM users WHERE role='user'")->fetch_assoc()['c'];
-$total_instructors = $con->query("SELECT COUNT(*) c FROM users WHERE role='instructor'")->fetch_assoc()['c'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -34,7 +49,6 @@ $total_instructors = $con->query("SELECT COUNT(*) c FROM users WHERE role='instr
 <link rel="stylesheet" href="admin_style.css">
 </head>
 <body>
-
 <button class="mobile-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
 <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
@@ -99,7 +113,6 @@ $total_instructors = $con->query("SELECT COUNT(*) c FROM users WHERE role='instr
             </div>
         </div>
 
-        <!-- ✅ BOOTSTRAP TABLE RESPONSIVE WRAPPER -->
         <div class="card border-0 shadow-sm">
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -109,14 +122,18 @@ $total_instructors = $con->query("SELECT COUNT(*) c FROM users WHERE role='instr
                         </thead>
                         <tbody>
                             <?php while($u = $users->fetch_assoc()): 
-                                $isStudent = ($u['role'] === 'user');
+                                // ✅ FIX 2: DYNAMIC TYPE DETECTION
+                                // Check ID format first, then fallback to role
+                                $isStudent = (preg_match('/^[A-Z]\d{2}-\d+$/', $u['student_id']) || strpos($u['student_id'], 'E') === 0);
+                                $typeLabel = $isStudent ? 'Student' : 'Instructor';
+                                $badgeClass = $isStudent ? 'user-type-student' : 'user-type-instructor';
                             ?>
                             <tr>
                                 <td class="fw-bold">#<?= $u['user_id'] ?></td>
                                 <td class="fw-semibold"><?= htmlspecialchars($u['username']) ?></td>
                                 <td><?= htmlspecialchars($u['email']) ?></td>
                                 <td><?= htmlspecialchars($u['student_id'] ?? 'N/A') ?></td>
-                                <td><span class="badge <?= $isStudent ? 'user-type-student' : 'user-type-instructor' ?>"><?= $isStudent ? 'Student' : 'Instructor' ?></span></td>
+                                <td><span class="badge <?= $badgeClass ?>"><?= $typeLabel ?></span></td>
                                 <td><?= date('M j, Y', strtotime($u['created_at'])) ?></td>
                                 <td>
                                     <form method="POST" class="d-inline" onsubmit="return confirm('Delete this user?')">
