@@ -109,15 +109,32 @@ body {
 .signup-box h1 { color: #8B0000; font-size: 1.8rem; font-weight: 700; margin-bottom: 0.3rem; }
 .signup-box .subtitle { color: #6c757d; font-size: 0.95rem; margin-bottom: 2rem; }
 
-.form-group { margin-bottom: 1.2rem; text-align: left; }
+.form-group { margin-bottom: 1.2rem; text-align: left; position: relative; }
 .form-group label { display: block; font-weight: 600; font-size: 0.9rem; color: #333; margin-bottom: 0.4rem; }
 .form-group input, .form-group select {
-    width: 100%; padding: 12px 15px; border: 1px solid #dee2e6; border-radius: 10px;
+    width: 100%; padding: 12px 45px 12px 15px; border: 1px solid #dee2e6; border-radius: 10px;
     font-size: 1rem; font-family: inherit; outline: none; transition: border-color 0.2s;
 }
 .form-group input:focus, .form-group select:focus { 
     border-color: #8B0000; box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1); 
 }
+
+/* ✅ EYE TOGGLE BUTTON */
+.toggle-password {
+    position: absolute;
+    right: 15px;
+    top: 38px;
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    z-index: 10;
+}
+.toggle-password:hover { color: #8B0000; }
 
 /* ✅ PASSWORD STRENGTH METER */
 .password-strength {
@@ -213,10 +230,13 @@ body {
             </div>
         </div>
         
-        <!-- ✅ PASSWORD WITH STRENGTH METER -->
+        <!-- ✅ PASSWORD WITH EYE TOGGLE -->
         <div class="form-group">
             <label><i class="bi bi-lock"></i> Password</label>
             <input type="password" name="password" id="password" required placeholder="Min. 8 chars, upper, lower, number, symbol" oninput="checkPasswordStrength()">
+            <button type="button" class="toggle-password" onclick="toggleVisibility('password', this)">
+                <i class="bi bi-eye"></i>
+            </button>
             <div class="password-strength">
                 <div class="password-strength-bar" id="strengthBar"></div>
             </div>
@@ -230,9 +250,13 @@ body {
             </div>
         </div>
         
+        <!-- ✅ CONFIRM PASSWORD WITH EYE TOGGLE -->
         <div class="form-group">
             <label><i class="bi bi-lock-fill"></i> Confirm Password</label>
             <input type="password" name="confirm_password" id="confirmPassword" required placeholder="Re-enter password" oninput="checkPasswordStrength()">
+            <button type="button" class="toggle-password" onclick="toggleVisibility('confirmPassword', this)">
+                <i class="bi bi-eye"></i>
+            </button>
         </div>
 
         <button type="submit" class="btn-signup" id="submitBtn" disabled><i class="bi bi-person-plus"></i> Create Account</button>
@@ -315,6 +339,22 @@ function updateRule(id, met) {
         el.classList.remove('met');
         el.classList.add('unmet');
         icon.className = 'bi bi-circle';
+    }
+}
+
+// ✅ TOGGLE PASSWORD VISIBILITY
+function toggleVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const icon = btn.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
     }
 }
 
