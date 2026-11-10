@@ -43,7 +43,7 @@ $accesories_items = [['productID'=>0, 'name'=>'Ribbon','price'=>5,'image'=>'ribb
 
 // --- DYNAMIC FETCH FROM DATABASE ---
 $ulam_items = []; $meryenda_items = []; $candies_items = []; $coffee_items = []; $drinks_items = []; $noodles_items = []; $essentials_items = [];
-$sql = "SELECT productID, productname, price, productImage, categoryID FROM products WHERE is_available = 1 ORDER BY productID ASC";
+$sql = "SELECT productID, productname, price, productImage, categoryID FROM products WHERE is_available = 1 AND is_visible = 1 ORDER BY productID ASC";
 $res = $con->query($sql);
 if ($res) {
     while ($row = $res->fetch_assoc()) {

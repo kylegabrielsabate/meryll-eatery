@@ -35,8 +35,8 @@ $stmt = $con->prepare("SELECT SUM(total_amount) as total FROM orders WHERE statu
 $stmt->execute();
 $total_revenue = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
 
-// Fetch products for dashboard grid
-$products = $con->query("SELECT * FROM products ORDER BY productID DESC LIMIT 12");
+// Fetch ALL products for dashboard grid (including hidden ones)
+$products = $con->query("SELECT * FROM products ORDER BY FIELD(categoryID, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), productID DESC");
 
 // Handle Quick Product Update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quick_update'])) {
@@ -74,6 +74,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quick_update'])) {
         $success_msg = "Product updated successfully!";
     }
 }
+
+// Handle Toggle Visibility
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_visibility'])) {
+    $product_id = (int)$_POST['product_id'];
+    $new_visibility = (int)$_POST['is_visible'];
+    
+    $stmt = $con->prepare("UPDATE products SET is_visible=? WHERE productID=?");
+    $stmt->bind_param("ii", $new_visibility, $product_id);
+    
+    if ($stmt->execute()) {
+        $toggle_msg = "Product visibility updated!";
+    }
+}
+
+// Category names
+$categories = [
+    1 => 'Ulam', 2 => 'Meryenda', 3 => 'Breakfast', 4 => 'Coffee', 
+    5 => 'Drinks', 6 => 'Snacks', 7 => 'Candies', 8 => 'Noodles', 
+    9 => 'Essentials', 10 => 'Accessories'
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -84,6 +104,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quick_update'])) {
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="admin_style.css">
+<style>
+/* Additional styles for visibility toggle */
+.visibility-toggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    z-index: 10;
+    transition: all 0.3s;
+}
+
+.visibility-toggle:hover {
+    background: rgba(0,0,0,0.9);
+}
+
+.visibility-toggle.active {
+    background: #10b981;
+}
+
+.visibility-toggle.inactive {
+    background: #ef4444;
+}
+
+.product-card.hidden {
+    opacity: 0.6;
+    filter: grayscale(0.8);
+}
+
+.category-badge {
+    position: absolute;
+    top: 10px;
+    right: 60px;
+    background: var(--admin-accent);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-tab {
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--admin-border);
+    background: #fff;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.filter-tab.active {
+    background: var(--admin-accent);
+    color: #fff;
+    border-color: var(--admin-accent);
+}
+
+.filter-tab:hover {
+    border-color: var(--admin-accent);
+}
+</style>
 </head>
 <body>
 
@@ -118,69 +215,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quick_update'])) {
     <div class="admin-container">
         <div class="admin-header">
             <div>
-                <h1>Dashboard Overview</h1>
-                <p style="color: var(--admin-text-muted, #64748b);"><?= date('l, F j, Y') ?></p>
+                <h1>Product Manager</h1>
+                <p style="color: var(--admin-text-muted, #64748b);">Manage all products - Click to edit, toggle visibility for Ulams</p>
             </div>
         </div>
 
         <?php if (isset($success_msg)): ?>
             <div class="alert-msg success"><i class="fas fa-check-circle"></i> <?php echo $success_msg; ?></div>
         <?php endif; ?>
+        
+        <?php if (isset($toggle_msg)): ?>
+            <div class="alert-msg info"><i class="fas fa-info-circle"></i> <?php echo $toggle_msg; ?></div>
+        <?php endif; ?>
 
-        <!-- ✅ CAMERA UPLOAD SECTION -->
-        <div class="camera-section">
-            <h3><i class="fas fa-camera" style="color:#8B0000;"></i> Quick Add Product with Camera</h3>
-            <div class="camera-upload-area" onclick="document.getElementById('cameraInput').click()">
-                <i class="fas fa-camera"></i>
-                <p><strong>Tap to take a photo</strong> or upload from gallery</p>
-                <button class="camera-btn"><i class="fas fa-plus"></i> Add Product</button>
-            </div>
-            <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleCameraUpload(this)">
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+            <button class="filter-tab active" onclick="filterProducts('all')">All Products</button>
+            <button class="filter-tab" onclick="filterProducts('visible')">Visible</button>
+            <button class="filter-tab" onclick="filterProducts('hidden')">Hidden</button>
+            <button class="filter-tab" onclick="filterProducts('ulam')">Ulam Only</button>
         </div>
 
-        <!-- Stats Grid with REAL DATABASE DATA -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon red"><i class="fas fa-receipt"></i></div>
-                <div class="stat-info">
-                    <h3>Pending Orders</h3>
-                    <p class="stat-number"><?= $pending_count ?></p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
-                <div class="stat-info">
-                    <h3>Completed Today</h3>
-                    <p class="stat-number"><?= $completed_count ?></p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon blue"><i class="fas fa-cash-register"></i></div>
-                <div class="stat-info">
-                    <h3>Total Revenue</h3>
-                    <p class="stat-number">₱<?= number_format($total_revenue, 2) ?></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Products Grid -->
+        <!-- Products Grid - ALL PRODUCTS -->
         <div class="admin-card">
-            <h3><i class="fas fa-boxes-stacked" style="color:#8B0000;"></i> Quick Product Manager</h3>
-            <p style="color:#64748b;margin-bottom:1rem;">Click any product to edit instantly</p>
+            <h3><i class="fas fa-th-large" style="color:#8B0000;"></i> All Products (<?php echo $products->num_rows; ?>)</h3>
+            <p style="color:#64748b;margin-bottom:1rem;">Click any product to edit. Use the eye icon to show/hide Ulams from the menu.</p>
             
             <?php if ($products && $products->num_rows > 0): ?>
-                <div class="products-grid">
-                    <?php while($prod = $products->fetch_assoc()): ?>
-                        <div class="product-card" onclick="openQuickEdit(<?= htmlspecialchars(json_encode($prod)) ?>)">
+                <div class="products-grid" id="productsGrid">
+                    <?php while($prod = $products->fetch_assoc()): 
+                        $is_visible = $prod['is_visible'] ?? 1;
+                        $category_name = $categories[$prod['categoryID']] ?? 'Other';
+                        $is_ulam = ($prod['categoryID'] == 1);
+                    ?>
+                        <div class="product-card <?= $is_visible ? '' : 'hidden' ?>" 
+                             data-category="<?= $prod['categoryID'] ?>" 
+                             data-visible="<?= $is_visible ?>"
+                             onclick="openQuickEdit(<?= htmlspecialchars(json_encode($prod)) ?>)">
+                            
+                            <!-- Visibility Toggle (Only for Ulams) -->
+                            <?php if ($is_ulam): ?>
+                                <form method="POST" style="position:absolute;top:10px;left:10px;z-index:20;" onclick="event.stopPropagation();">
+                                    <input type="hidden" name="toggle_visibility" value="1">
+                                    <input type="hidden" name="product_id" value="<?= $prod['productID'] ?>">
+                                    <input type="hidden" name="is_visible" value="<?= $is_visible ? 0 : 1 ?>">
+                                    <button type="submit" class="visibility-toggle <?= $is_visible ? 'active' : 'inactive' ?>" title="<?= $is_visible ? 'Click to hide' : 'Click to show' ?>">
+                                        <i class="fas <?= $is_visible ? 'fa-eye' : 'fa-eye-slash' ?>"></i>
+                                        <span><?= $is_visible ? 'Visible' : 'Hidden' ?></span>
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                            
+                            <!-- Category Badge -->
+                            <span class="category-badge"><?= $category_name ?></span>
+                            
                             <img src="../images/products/<?= htmlspecialchars($prod['productImage'] ?: 'placeholder.jpg') ?>" 
                                  alt="<?= htmlspecialchars($prod['productname']) ?>" 
                                  class="product-image"
                                  onerror="this.src='https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image'">
+                            
                             <div class="quick-edit-badge"><i class="fas fa-edit"></i> Edit</div>
                             <div class="product-info">
                                 <div class="product-name"><?= htmlspecialchars($prod['productname']) ?></div>
-                                <div class="product-price">₱<?= number_format($prod['price'], 2) ?></div>
-                                <div class="product-stock">Stock: <?= $prod['stock'] ?></div>
+                                <div class="product-price"><?= number_format($prod['price'], 2) ?></div>
+                                <div class="product-stock">Stock: <?= $prod['stock'] ?> <?= $is_visible ? '<span style="color:#10b981">✓</span>' : '<span style="color:#ef4444">✗</span>' ?></div>
                             </div>
                         </div>
                     <?php endwhile; ?>
@@ -207,6 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quick_update'])) {
                 <div class="form-group">
                     <label>Product Image</label>
                     <input type="file" name="product_image" accept="image/*" capture="environment" style="padding:0.5rem;">
+                    <small style="color:#64748b;">Leave empty to keep current image</small>
                 </div>
                 
                 <div class="form-group">
@@ -240,22 +339,6 @@ function toggleSidebar() {
     document.body.style.overflow = document.getElementById('sidebar').classList.contains('active') ? 'hidden' : '';
 }
 
-function handleCameraUpload(input) {
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        const formData = new FormData();
-        formData.append('product_image', file);
-        formData.append('quick_add', '1');
-        
-        // Show loading
-        alert('Processing image... Please enter product details next.');
-        
-        // For now, redirect to inventory with the image
-        // In production, you'd handle this via AJAX
-        window.location.href = 'admin_inventory.php?camera_upload=1';
-    }
-}
-
 function openQuickEdit(product) {
     document.getElementById('edit_product_id').value = product.productID;
     document.getElementById('edit_product_name').value = product.productname;
@@ -266,6 +349,30 @@ function openQuickEdit(product) {
 
 function closeQuickEdit() {
     document.getElementById('quickEditModal').classList.remove('active');
+}
+
+// Filter products
+function filterProducts(filter) {
+    // Update active tab
+    document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    const cards = document.querySelectorAll('.product-card');
+    
+    cards.forEach(card => {
+        const category = parseInt(card.dataset.category);
+        const visible = parseInt(card.dataset.visible);
+        
+        if (filter === 'all') {
+            card.style.display = 'block';
+        } else if (filter === 'visible') {
+            card.style.display = visible === 1 ? 'block' : 'none';
+        } else if (filter === 'hidden') {
+            card.style.display = visible === 0 ? 'block' : 'none';
+        } else if (filter === 'ulam') {
+            card.style.display = category === 1 ? 'block' : 'none';
+        }
+    });
 }
 
 // Close modal when clicking outside
