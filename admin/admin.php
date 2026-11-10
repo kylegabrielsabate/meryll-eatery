@@ -228,12 +228,48 @@ $categories = [
             <div class="alert-msg info"><i class="fas fa-info-circle"></i> <?php echo $toggle_msg; ?></div>
         <?php endif; ?>
 
+        <!-- ✅ CAMERA UPLOAD SECTION -->
+        <div class="camera-section">
+            <h3><i class="fas fa-camera" style="color:#8B0000;"></i> Quick Add Product with Camera</h3>
+            <div class="camera-upload-area" onclick="document.getElementById('cameraInput').click()">
+                <i class="fas fa-camera"></i>
+                <p><strong>Tap to take a photo</strong> or upload from gallery</p>
+                <button class="camera-btn"><i class="fas fa-plus"></i> Add Product</button>
+            </div>
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleCameraUpload(this)">
+        </div>
+
         <!-- Filter Tabs -->
         <div class="filter-tabs">
             <button class="filter-tab active" onclick="filterProducts('all')">All Products</button>
             <button class="filter-tab" onclick="filterProducts('visible')">Visible</button>
             <button class="filter-tab" onclick="filterProducts('hidden')">Hidden</button>
             <button class="filter-tab" onclick="filterProducts('ulam')">Ulam Only</button>
+        </div>
+
+        <!-- Stats Grid with REAL DATABASE DATA -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="fas fa-receipt"></i></div>
+                <div class="stat-info">
+                    <h3>Pending Orders</h3>
+                    <p class="stat-number"><?= $pending_count ?></p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-info">
+                    <h3>Completed Today</h3>
+                    <p class="stat-number"><?= $completed_count ?></p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-cash-register"></i></div>
+                <div class="stat-info">
+                    <h3>Total Revenue</h3>
+                    <p class="stat-number">₱<?= number_format($total_revenue, 2) ?></p>
+                </div>
+            </div>
         </div>
 
         <!-- Products Grid - ALL PRODUCTS -->
@@ -247,6 +283,18 @@ $categories = [
                         $is_visible = $prod['is_visible'] ?? 1;
                         $category_name = $categories[$prod['categoryID']] ?? 'Other';
                         $is_ulam = ($prod['categoryID'] == 1);
+                        
+                        // ✅ FIXED IMAGE PATH
+                        $image_src = '';
+                        if (!empty($prod['productImage'])) {
+                            $image_src = '../images/products/' . $prod['productImage'];
+                            // Check if file exists
+                            if (!file_exists(__DIR__ . '/../images/products/' . $prod['productImage'])) {
+                                $image_src = 'https://via.placeholder.com/200x160/8B0000/ffffff?text=' . urlencode($prod['productname']);
+                            }
+                        } else {
+                            $image_src = 'https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image';
+                        }
                     ?>
                         <div class="product-card <?= $is_visible ? '' : 'hidden' ?>" 
                              data-category="<?= $prod['categoryID'] ?>" 
@@ -269,7 +317,7 @@ $categories = [
                             <!-- Category Badge -->
                             <span class="category-badge"><?= $category_name ?></span>
                             
-                            <img src="../images/products/<?= htmlspecialchars($prod['productImage'] ?: 'placeholder.jpg') ?>" 
+                            <img src="<?= $image_src ?>" 
                                  alt="<?= htmlspecialchars($prod['productname']) ?>" 
                                  class="product-image"
                                  onerror="this.src='https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image'">
@@ -277,7 +325,7 @@ $categories = [
                             <div class="quick-edit-badge"><i class="fas fa-edit"></i> Edit</div>
                             <div class="product-info">
                                 <div class="product-name"><?= htmlspecialchars($prod['productname']) ?></div>
-                                <div class="product-price"><?= number_format($prod['price'], 2) ?></div>
+                                <div class="product-price">₱<?= number_format($prod['price'], 2) ?></div>
                                 <div class="product-stock">Stock: <?= $prod['stock'] ?> <?= $is_visible ? '<span style="color:#10b981">✓</span>' : '<span style="color:#ef4444">✗</span>' ?></div>
                             </div>
                         </div>
@@ -337,6 +385,17 @@ function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('active');
     document.getElementById('sidebarOverlay').classList.toggle('active');
     document.body.style.overflow = document.getElementById('sidebar').classList.contains('active') ? 'hidden' : '';
+}
+
+function handleCameraUpload(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        // Redirect to inventory to add product details
+        const formData = new FormData();
+        formData.append('camera_file', file);
+        sessionStorage.setItem('cameraUpload', 'true');
+        window.location.href = 'admin_inventory.php?camera_upload=1';
+    }
 }
 
 function openQuickEdit(product) {
