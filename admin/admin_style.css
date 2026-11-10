@@ -1,5 +1,5 @@
 /* ============================================
-   KUYA BATAS ADMIN - MOBILE RESPONSIVE
+   KUYA BATAS ADMIN - MOBILE OPTIMIZED
    ============================================ */
 
 :root {
@@ -22,6 +22,7 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -33,7 +34,7 @@ body {
 }
 
 /* ============================================
-   SIDEBAR - MOBILE RESPONSIVE
+   SIDEBAR - MOBILE OPTIMIZED
    ============================================ */
 .sidebar {
     width: 260px;
@@ -47,18 +48,20 @@ body {
     top: 0;
     z-index: 100;
     transition: transform 0.3s ease;
+    overflow-y: auto;
 }
 
 .sidebar .logo {
     color: #fff;
     font-size: 1.3rem;
     font-weight: 800;
-    padding: 1.5rem;
+    padding: 1.2rem;
     border-bottom: 1px solid #334155;
     display: flex;
     align-items: center;
     gap: 10px;
     text-decoration: none;
+    flex-shrink: 0;
 }
 
 .sidebar .logo-icon {
@@ -76,11 +79,12 @@ body {
     color: #fff;
     font-size: 1.2rem;
     cursor: pointer;
+    padding: 8px;
 }
 
 .nav-menu {
     list-style: none;
-    padding: 1rem 0;
+    padding: 0.5rem 0;
     margin: 0;
     flex: 1;
     overflow-y: auto;
@@ -94,13 +98,14 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 1.5rem;
+    padding: 14px 1.5rem;
     color: #cbd5e1;
     text-decoration: none;
     font-weight: 500;
     font-size: 0.95rem;
     transition: all 0.2s;
     border-left: 3px solid transparent;
+    min-height: 48px;
 }
 
 .nav-link:hover {
@@ -127,14 +132,16 @@ body {
 }
 
 .sidebar-footer {
-    padding: 1rem 1.5rem;
+    padding: 0.8rem 1.5rem;
     border-top: 1px solid #334155;
     margin-top: auto;
+    flex-shrink: 0;
 }
 
 .sidebar-footer .nav-link {
-    padding: 10px 0;
+    padding: 12px 0;
     border-left: none;
+    min-height: 44px;
 }
 
 /* ============================================
@@ -174,7 +181,7 @@ body {
     font-size: 0.95rem;
 }
 
-/* Mobile Menu Toggle */
+/* Mobile Menu Toggle - IMPROVED */
 .mobile-menu-toggle {
     display: none;
     position: fixed;
@@ -184,12 +191,18 @@ body {
     background: var(--admin-accent);
     color: #fff;
     border: none;
-    width: 45px;
-    height: 45px;
-    border-radius: 10px;
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
     cursor: pointer;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     box-shadow: 0 4px 12px rgba(139, 0, 0, 0.3);
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-menu-toggle:active {
+    transform: scale(0.95);
 }
 
 /* ============================================
@@ -225,6 +238,7 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
+    flex-shrink: 0;
 }
 
 .stat-icon.red {
@@ -269,7 +283,7 @@ body {
 }
 
 /* ============================================
-   PRODUCTS GRID - DASHBOARD
+   PRODUCTS GRID - MOBILE RESPONSIVE
    ============================================ */
 .products-grid {
     display: grid;
@@ -517,11 +531,12 @@ body {
 }
 
 /* ============================================
-   BUTTONS
+   BUTTONS - MOBILE OPTIMIZED
    ============================================ */
 .btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     padding: 0.75rem 1.5rem;
     border: none;
@@ -532,6 +547,7 @@ body {
     transition: all 0.2s;
     font-family: inherit;
     text-decoration: none;
+    min-height: 44px;
 }
 
 .btn-primary {
@@ -543,6 +559,10 @@ body {
     background: var(--admin-accent-hover);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(139, 0, 0, 0.3);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
 }
 
 .btn-secondary {
@@ -584,6 +604,7 @@ body {
     align-items: center;
     gap: 8px;
     font-family: inherit;
+    min-height: 44px;
 }
 
 .btn-print:hover {
@@ -603,6 +624,7 @@ body {
     gap: 8px;
     transition: all 0.3s;
     font-family: inherit;
+    min-height: 44px;
 }
 
 .btn-add:hover {
@@ -614,12 +636,13 @@ body {
     background: var(--admin-accent);
     color: #fff;
     border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 0.85rem;
     font-weight: 600;
     font-family: inherit;
+    min-height: 36px;
 }
 
 .btn-view:hover {
@@ -627,8 +650,8 @@ body {
 }
 
 .action-btn {
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border-radius: 8px;
     border: none;
     cursor: pointer;
@@ -660,7 +683,7 @@ body {
 }
 
 /* ============================================
-   FORMS
+   FORMS - MOBILE OPTIMIZED
    ============================================ */
 .form-group {
     margin-bottom: 1.2rem;
@@ -683,10 +706,11 @@ body {
     padding: 0.75rem 1rem;
     border: 2px solid var(--admin-border);
     border-radius: 10px;
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-family: inherit;
     transition: all 0.2s;
     background: #fff;
+    min-height: 44px;
 }
 
 .form-group input:focus,
@@ -735,7 +759,7 @@ body {
 }
 
 /* ============================================
-   MODAL
+   MODAL - MOBILE OPTIMIZED
    ============================================ */
 .modal-overlay {
     position: fixed;
@@ -749,6 +773,7 @@ body {
     display: none;
     align-items: center;
     justify-content: center;
+    padding: 1rem;
 }
 
 .modal-overlay.active {
@@ -764,7 +789,7 @@ body {
 .modal-content {
     background: #fff;
     width: 500px;
-    max-width: 90%;
+    max-width: 100%;
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
@@ -797,14 +822,15 @@ body {
     background: rgba(255, 255, 255, 0.2);
     border: none;
     color: #fff;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s;
+    font-size: 1rem;
 }
 
 .modal-close:hover {
@@ -868,6 +894,7 @@ body {
     font-size: 0.9rem;
     outline: none;
     transition: all 0.3s;
+    min-height: 44px;
 }
 
 .search-container input:focus {
@@ -942,7 +969,7 @@ body {
 }
 
 /* ============================================
-   RESPONSIVE DESIGN - MOBILE
+   MOBILE RESPONSIVE - PHONE OPTIMIZED
    ============================================ */
 @media (max-width: 1024px) {
     .dashboard-grid {
@@ -959,8 +986,13 @@ body {
 }
 
 @media (max-width: 768px) {
+    /* Sidebar - Full height, no scroll needed */
     .sidebar {
         transform: translateX(-100%);
+        width: 280px;
+        height: 100vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
     
     .sidebar.active {
@@ -972,19 +1004,33 @@ body {
     }
     
     .mobile-menu-toggle {
-        display: block;
+        display: flex;
     }
     
+    /* Main content - Full width */
     .main-content {
         margin-left: 0;
         padding: 1rem;
         padding-top: 5rem;
     }
     
+    /* Stats - Stack on mobile */
     .stats-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
     
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    /* Products - 2 columns on mobile */
+    .products-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    /* Inventory header - Stack */
     .inventory-header {
         flex-direction: column;
         align-items: stretch;
@@ -999,23 +1045,41 @@ body {
         align-items: flex-start;
     }
     
-    .products-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
+    .admin-header h1 {
+        font-size: 1.5rem;
     }
     
+    /* Tables - Horizontal scroll */
     .data-table {
         display: block;
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     
+    /* Modal - Full width on mobile */
     .modal-content {
-        width: 95%;
-        margin: 1rem;
+        width: 100%;
+        margin: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 95vh;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    /* Camera section */
+    .camera-section {
+        padding: 1.5rem;
+    }
+    
+    .camera-upload-area {
+        padding: 1.5rem;
     }
 }
 
 @media (max-width: 480px) {
+    /* Products - Single column on small phones */
     .products-grid {
         grid-template-columns: 1fr;
     }
@@ -1032,5 +1096,26 @@ body {
     
     .stat-info p {
         font-size: 1.2rem;
+    }
+    
+    /* Smaller padding */
+    .main-content {
+        padding: 0.75rem;
+        padding-top: 4.5rem;
+    }
+    
+    .admin-card {
+        padding: 1rem;
+    }
+    
+    /* Filter tabs - Wrap */
+    .filter-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .filter-tab {
+        flex: 1;
+        min-width: 120px;
+        text-align: center;
     }
 }
