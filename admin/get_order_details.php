@@ -157,6 +157,7 @@ $recent_orders = $stmt_list->get_result();
 
         <div class="admin-card">
             <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-list-ul" style="color:#8B0000;"></i> Order Items</h3>
+            <!-- ✅ NEGATIVE MARGIN TABLE WRAPPER -->
             <div class="table-responsive">
                 <table class="data-table">
                     <thead>
@@ -191,6 +192,7 @@ $recent_orders = $stmt_list->get_result();
         <div class="admin-card">
             <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-clock" style="color:#8B0000;"></i> Recent Orders</h3>
             <?php if ($recent_orders->num_rows > 0): ?>
+                <!-- ✅ NEGATIVE MARGIN TABLE WRAPPER -->
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>

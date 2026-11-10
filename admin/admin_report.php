@@ -72,6 +72,7 @@ $top_items_report = $con->query("
             <div class="admin-card">
                 <h3 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-trophy" style="color:#8B0000;"></i> Top 5 Most Sold Items</h3>
                 <?php if ($top_items_report && $top_items_report->num_rows > 0): ?>
+                    <!-- ✅ NEGATIVE MARGIN TABLE WRAPPER -->
                     <div class="table-responsive">
                         <table class="data-table">
                             <thead><tr><th>Rank</th><th>Item Name</th><th>Total Quantity Sold</th><th>Total Revenue</th></tr></thead>
@@ -97,6 +98,7 @@ $top_items_report = $con->query("
                 <?php if (empty($monthly_data)): ?>
                     <p style="text-align: center; color: #94a3b8; padding: 2rem;">No order data available yet.</p>
                 <?php else: ?>
+                    <!-- ✅ NEGATIVE MARGIN TABLE WRAPPER -->
                     <div class="table-responsive">
                         <table class="data-table">
                             <thead><tr><th>Month / Year</th><th>Total Orders</th><th>Total Revenue</th></tr></thead>

@@ -93,8 +93,8 @@ $products = $con->query($sql);
                 </div>
             </div>
 
-            <div class="admin-card" style="padding: 0; overflow: hidden;">
-                <!-- ✅ TABLE WRAPPED IN SCROLLABLE DIV -->
+            <div class="admin-card" style="padding: 0;">
+                <!-- ✅ NEGATIVE MARGIN TABLE WRAPPER -->
                 <div class="table-responsive">
                     <table class="data-table" style="width: 100%; border-collapse: collapse;">
                         <thead><tr><th>ID</th><th>Product Name</th><th>Category</th><th>Unit</th><th>Price</th><th>Stock</th><th>Status</th><th style="text-align: center;">Actions</th></tr></thead>

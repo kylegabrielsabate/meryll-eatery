@@ -55,7 +55,7 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
             </div>
 
             <div class="admin-card" style="padding: 0;">
-                <!-- ✅ TABLE WRAPPED IN SCROLLABLE DIV -->
+                <!-- ✅ NEGATIVE MARGIN TABLE WRAPPER -->
                 <div class="table-responsive">
                     <table class="data-table" style="width: 100%; border-collapse: collapse;">
                         <thead><tr><th>Order #</th><th>Customer</th><th>Type</th><th>Time</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
