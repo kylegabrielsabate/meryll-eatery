@@ -111,409 +111,324 @@ $categories = [
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Dashboard - Meryll Eatery</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="admin_style.css">
+<style>
+/* Dashboard specific overrides */
+.stat-card { transition: transform 0.2s; }
+.stat-card:hover { transform: translateY(-4px); }
+.product-card { cursor: pointer; transition: all 0.3s; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.product-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+.product-image { width: 100%; height: 160px; object-fit: cover; background: #f1f5f9; }
+.quick-edit-badge { position: absolute; top: 10px; right: 10px; opacity: 0; transition: opacity 0.3s; z-index: 10; }
+.product-card:hover .quick-edit-badge { opacity: 1; }
+.category-badge { position: absolute; top: 10px; left: 10px; z-index: 10; }
+.visibility-toggle { position: absolute; bottom: 10px; left: 10px; z-index: 10; font-size: 0.7rem; padding: 4px 8px; }
+.preview-image { max-width: 100%; max-height: 200px; border-radius: 8px; margin-bottom: 1rem; }
+.filter-btn.active { background-color: var(--admin-accent); color: #fff; border-color: var(--admin-accent); }
+</style>
 </head>
 <body>
 
-<button class="mobile-menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+<button class="mobile-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+<div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
-<aside class="sidebar" id="sidebar">
-    <button class="sidebar-close" onclick="toggleSidebar()"><i class="fas fa-arrow-left"></i></button>
-    <a href="admin.php" class="logo">
-        <span class="logo-icon"><i class="fas fa-utensils"></i></span> Meryll Eatery
-    </a>
-    <ul class="nav-menu">
-        <li class="nav-item"><a href="admin.php" class="nav-link active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-        <li class="nav-item"><a href="admin_orders.php" class="nav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a></li>
-        <li class="nav-item"><a href="get_order_details.php" class="nav-link"><i class="fas fa-receipt"></i> Order Details</a></li>
-        <li class="nav-item"><a href="admin_inventory.php" class="nav-link"><i class="fas fa-boxes-stacked"></i> Inventory</a></li>
-        <li class="nav-item"><a href="admin_report.php" class="nav-link"><i class="fas fa-chart-line"></i> Monthly Report</a></li>
-    </ul>
+<aside class="sidebar d-flex flex-column" id="sidebar">
+    <a href="admin.php" class="logo"><span class="logo-icon"><i class="fas fa-utensils"></i></span> Meryll Eatery</a>
+    <nav class="nav flex-column flex-grow-1">
+        <a href="admin.php" class="nav-link active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="admin_orders.php" class="nav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a>
+        <a href="get_order_details.php" class="nav-link"><i class="fas fa-receipt"></i> Order Details</a>
+        <a href="admin_inventory.php" class="nav-link"><i class="fas fa-boxes-stacked"></i> Inventory</a>
+        <a href="manage_users.php" class="nav-link"><i class="fas fa-users"></i> Manage Users</a>
+        <a href="admin_report.php" class="nav-link"><i class="fas fa-chart-line"></i> Monthly Report</a>
+    </nav>
     <div class="sidebar-footer">
-        <a href="admin.php" class="nav-link"><i class="fas fa-user-shield"></i> <?php echo htmlspecialchars($admin_name); ?></a>
-        <a href="../user/logout.php" class="nav-link" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        <a href="admin.php" class="nav-link"><i class="fas fa-user-shield"></i> <?= htmlspecialchars($admin_name) ?></a>
+        <a href="../user/logout.php" class="nav-link text-danger"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
 </aside>
 
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
 <main class="main-content">
-    <div class="admin-container">
-        <div class="admin-header">
-            <div>
-                <h1>Product Manager</h1>
-                <p style="color: var(--admin-text-muted, #64748b);">Manage all products - Click to edit, toggle visibility for Ulams</p>
+    <div class="container-fluid p-0">
+        <?php if (isset($success_msg)): ?>
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="fas fa-check-circle me-2"></i><?= $success_msg ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+        <?php if (isset($toggle_msg)): ?>
+            <div class="alert alert-info alert-dismissible fade show">
+                <i class="fas fa-info-circle me-2"></i><?= $toggle_msg ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+
+        <h1 class="mb-1">Product Manager</h1>
+        <p class="text-muted mb-4">Manage all products - Click to edit, toggle visibility for Ulams</p>
+
+        <!-- Camera Upload Section -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body text-center py-4">
+                <h5 class="card-title mb-3"><i class="fas fa-camera text-accent me-2"></i>Quick Add Product with Camera</h5>
+                <p class="text-muted small mb-3">Tap to take a photo or upload from gallery</p>
+                <button class="btn btn-primary px-4" onclick="document.getElementById('cameraInput').click()">
+                    <i class="fas fa-plus me-2"></i>Add Product
+                </button>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleCameraUpload(this)" style="display:none;">
             </div>
         </div>
 
-        <?php if (isset($success_msg)): ?><div class="alert-msg success"><i class="fas fa-check-circle"></i> <?php echo $success_msg; ?></div><?php endif; ?>
-        <?php if (isset($toggle_msg)): ?><div class="alert-msg info"><i class="fas fa-info-circle"></i> <?php echo $toggle_msg; ?></div><?php endif; ?>
-
-        <div class="camera-section">
-            <h3><i class="fas fa-camera" style="color:#8B0000;"></i> Quick Add Product with Camera</h3>
-            <div class="camera-upload-area" onclick="document.getElementById('cameraInput').click()">
-                <i class="fas fa-camera"></i>
-                <p><strong>Tap to take a photo</strong> or upload from gallery</p>
-                <button class="camera-btn"><i class="fas fa-plus"></i> Add Product</button>
-            </div>
-            <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleCameraUpload(this)" style="display:none;">
+        <!-- Filter Buttons -->
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <button class="btn btn-outline-secondary filter-btn active" onclick="filterProducts('all', this)">All Products</button>
+            <button class="btn btn-outline-secondary filter-btn" onclick="filterProducts('visible', this)">Visible</button>
+            <button class="btn btn-outline-secondary filter-btn" onclick="filterProducts('hidden', this)">Hidden</button>
+            <button class="btn btn-outline-secondary filter-btn" onclick="filterProducts('ulam', this)">Ulam Only</button>
         </div>
 
-        <div class="filter-tabs">
-            <button class="filter-tab active" onclick="filterProducts('all')">All Products</button>
-            <button class="filter-tab" onclick="filterProducts('visible')">Visible</button>
-            <button class="filter-tab" onclick="filterProducts('hidden')">Hidden</button>
-            <button class="filter-tab" onclick="filterProducts('ulam')">Ulam Only</button>
-        </div>
-
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon red"><i class="fas fa-receipt"></i></div>
-                <div class="stat-info"><h3>Pending Orders</h3><p class="stat-number"><?= $pending_count ?></p></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
-                <div class="stat-info"><h3>Completed Today</h3><p class="stat-number"><?= $completed_count ?></p></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon blue"><i class="fas fa-cash-register"></i></div>
-                <div class="stat-info"><h3>Total Revenue</h3><p class="stat-number">₱<?= number_format($total_revenue, 2) ?></p></div>
-            </div>
-        </div>
-
-        <div class="admin-card">
-            <h3><i class="fas fa-th-large" style="color:#8B0000;"></i> All Products (<?php echo $products->num_rows; ?>)</h3>
-            <p style="color:#64748b;margin-bottom:1rem;">Click any product to edit. Use the eye icon to show/hide Ulams from the menu.</p>
-            
-            <?php if ($products && $products->num_rows > 0): ?>
-                <div class="products-grid" id="productsGrid">
-                    <?php while($prod = $products->fetch_assoc()): 
-                        $is_visible = $prod['is_visible'] ?? 1;
-                        $category_name = $categories[$prod['categoryID']] ?? 'Other';
-                        $is_ulam = ($prod['categoryID'] == 1);
-                        
-                        $image_src = '';
-                        if (!empty($prod['productImage'])) {
-                            $image_src = '../images/products/' . $prod['productImage'];
-                            if (!file_exists(__DIR__ . '/../images/products/' . $prod['productImage'])) {
-                                $image_src = 'https://via.placeholder.com/200x160/8B0000/ffffff?text=' . urlencode($prod['productname']);
-                            }
-                        } else {
-                            $image_src = 'https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image';
-                        }
-                    ?>
-                        <div class="product-card <?= $is_visible ? '' : 'hidden' ?>" 
-                             data-category="<?= $prod['categoryID'] ?>" 
-                             data-visible="<?= $is_visible ?>"
-                             onclick="openQuickEdit(<?= htmlspecialchars(json_encode($prod)) ?>)">
-                            
-                            <?php if ($is_ulam): ?>
-                                <form method="POST" style="position:absolute;top:10px;left:10px;z-index:20;" onclick="event.stopPropagation();">
-                                    <input type="hidden" name="toggle_visibility" value="1">
-                                    <input type="hidden" name="product_id" value="<?= $prod['productID'] ?>">
-                                    <input type="hidden" name="is_visible" value="<?= $is_visible ? 0 : 1 ?>">
-                                    <button type="submit" class="visibility-toggle <?= $is_visible ? 'active' : 'inactive' ?>">
-                                        <i class="fas <?= $is_visible ? 'fa-eye' : 'fa-eye-slash' ?>"></i>
-                                        <span><?= $is_visible ? 'Visible' : 'Hidden' ?></span>
-                                    </button>
-                                </form>
-                            <?php endif; ?>
-                            
-                            <span class="category-badge"><?= $category_name ?></span>
-                            <img src="<?= $image_src ?>" alt="<?= htmlspecialchars($prod['productname']) ?>" class="product-image" onerror="this.src='https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image'">
-                            <div class="quick-edit-badge"><i class="fas fa-edit"></i> Edit</div>
-                            <div class="product-info">
-                                <div class="product-name"><?= htmlspecialchars($prod['productname']) ?></div>
-                                <div class="product-price">₱<?= number_format($prod['price'], 2) ?></div>
-                                <div class="product-stock">Stock: <?= $prod['stock'] ?> <?= $is_visible ? '<span style="color:#10b981">✓</span>' : '<span style="color:#ef4444">✗</span>' ?></div>
-                            </div>
+        <!-- Stats Grid -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm stat-card h-100">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;">
+                            <i class="fas fa-receipt fa-lg"></i>
                         </div>
-                    <?php endwhile; ?>
+                        <div>
+                            <h6 class="text-muted mb-0 small fw-bold text-uppercase">Pending Orders</h6>
+                            <h3 class="mb-0 fw-bold"><?= $pending_count ?></h3>
+                        </div>
+                    </div>
                 </div>
-            <?php else: ?>
-                <p style="text-align:center;padding:2rem;color:#64748b;">No products yet. Use the camera above to add your first product!</p>
-            <?php endif; ?>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm stat-card h-100">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="bg-success bg-opacity-10 text-success rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;">
+                            <i class="fas fa-check-circle fa-lg"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-0 small fw-bold text-uppercase">Completed Today</h6>
+                            <h3 class="mb-0 fw-bold"><?= $completed_count ?></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm stat-card h-100">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;">
+                            <i class="fas fa-cash-register fa-lg"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-0 small fw-bold text-uppercase">Total Revenue</h6>
+                            <h3 class="mb-0 fw-bold">₱<?= number_format($total_revenue, 2) ?></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Grid -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-1"><i class="fas fa-th-large text-accent me-2"></i>All Products (<?= $products->num_rows ?>)</h5>
+                <p class="text-muted small mb-4">Click any product to edit. Use the eye icon to show/hide Ulams from the menu.</p>
+                
+                <?php if ($products && $products->num_rows > 0): ?>
+                    <div class="row g-3" id="productsGrid">
+                        <?php while($prod = $products->fetch_assoc()): 
+                            $is_visible = $prod['is_visible'] ?? 1;
+                            $category_name = $categories[$prod['categoryID']] ?? 'Other';
+                            $is_ulam = ($prod['categoryID'] == 1);
+                            
+                            $image_src = '';
+                            if (!empty($prod['productImage'])) {
+                                $image_src = '../images/products/' . $prod['productImage'];
+                                if (!file_exists(__DIR__ . '/../images/products/' . $prod['productImage'])) {
+                                    $image_src = 'https://via.placeholder.com/300x200/8B0000/ffffff?text=' . urlencode($prod['productname']);
+                                }
+                            } else {
+                                $image_src = 'https://via.placeholder.com/300x200/8B0000/ffffff?text=No+Image';
+                            }
+                        ?>
+                            <div class="col-6 col-md-4 col-lg-3 product-item" 
+                                 data-category="<?= $prod['categoryID'] ?>" 
+                                 data-visible="<?= $is_visible ?>">
+                                <div class="product-card position-relative h-100" onclick="openQuickEdit(<?= htmlspecialchars(json_encode($prod)) ?>)">
+                                    <span class="badge bg-accent category-badge"><?= $category_name ?></span>
+                                    
+                                    <?php if ($is_ulam): ?>
+                                        <form method="POST" onclick="event.stopPropagation();" class="position-absolute bottom-0 start-0 m-2 z-3">
+                                            <input type="hidden" name="toggle_visibility" value="1">
+                                            <input type="hidden" name="product_id" value="<?= $prod['productID'] ?>">
+                                            <input type="hidden" name="is_visible" value="<?= $is_visible ? 0 : 1 ?>">
+                                            <button type="submit" class="btn btn-sm <?= $is_visible ? 'btn-success' : 'btn-danger' ?> visibility-toggle">
+                                                <i class="fas <?= $is_visible ? 'fa-eye' : 'fa-eye-slash' ?>"></i>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                    
+                                    <img src="<?= $image_src ?>" alt="<?= htmlspecialchars($prod['productname']) ?>" class="product-image">
+                                    
+                                    <span class="badge bg-primary quick-edit-badge"><i class="fas fa-edit me-1"></i>Edit</span>
+                                    
+                                    <div class="p-3 bg-white">
+                                        <h6 class="fw-bold mb-1 text-truncate"><?= htmlspecialchars($prod['productname']) ?></h6>
+                                        <p class="text-accent fw-bold mb-1">₱<?= number_format($prod['price'], 2) ?></p>
+                                        <small class="text-muted">Stock: <?= $prod['stock'] ?> 
+                                            <?= $is_visible ? '<i class="fas fa-check text-success ms-1"></i>' : '<i class="fas fa-times text-danger ms-1"></i>' ?>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endwhile; ?>
+                    </div>
+                <?php else: ?>
+                    <p class="text-muted text-center py-4">No products yet. Use the camera above to add your first product!</p>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </main>
 
 <!-- Quick Edit Modal -->
-<div class="modal-overlay" id="quickEditModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3><i class="fas fa-edit"></i> Quick Edit Product</h3>
-            <button class="modal-close" onclick="closeQuickEdit()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body">
-            <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="quick_update" value="1">
-                <input type="hidden" name="product_id" id="edit_product_id">
-                <div class="form-group">
-                    <label>Product Image</label>
-                    <input type="file" name="product_image" accept="image/*" capture="environment" style="padding:0.5rem;">
-                    <small style="color:#64748b;">Leave empty to keep current image</small>
-                </div>
-                <div class="form-group"><label>Product Name</label><input type="text" name="product_name" id="edit_product_name" required></div>
-                <div class="form-row">
-                    <div class="form-group"><label>Price (₱)</label><input type="number" step="0.01" name="price" id="edit_price" required></div>
-                    <div class="form-group"><label>Stock</label><input type="number" name="stock" id="edit_stock" required></div>
-                </div>
-                <button type="submit" class="btn-primary" style="width:100%;margin-top:1rem;"><i class="fas fa-save"></i> Save Changes</button>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- New Product from Camera Modal -->
-<div class="modal-overlay" id="cameraModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3><i class="fas fa-camera"></i> Add New Product</h3>
-            <button class="modal-close" onclick="closeCameraModal()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body">
-            <img id="cameraPreview" class="preview-image" alt="Captured image">
-            <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="add_new_product" value="1">
-                <div class="form-group"><label>Product Name</label><input type="text" name="product_name" required placeholder="e.g., Chicken Adobo"></div>
-                <div class="form-group">
-                    <label>Category</label>
-                    <select name="category_id" required>
-                        <?php foreach($categories as $id => $name): ?><option value="<?= $id ?>"><?= $name ?></option><?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <div class="form-group"><label>Price (₱)</label><input type="number" step="0.01" name="price" required placeholder="0.00"></div>
-                    <div class="form-group"><label>Stock</label><input type="number" name="stock" required placeholder="0"></div>
-                </div>
-                <div class="form-group"><label>Unit</label><input type="text" name="unit" placeholder="e.g., 1 serving, 1 pc" value="1 serving"></div>
-                <button type="submit" class="btn-primary" style="width:100%;margin-top:1rem;"><i class="fas fa-plus"></i> Add Product</button>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ============================================
-     REAL-TIME NOTIFICATION MODAL
-     ============================================ -->
-<div class="modal-overlay" id="orderAlertModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3><i class="fas fa-bell"></i> New Order Received!</h3>
-            <button class="modal-close" onclick="dismissAlert()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body" style="text-align:center;">
-            <i class="fas fa-receipt" style="font-size:4rem;color:var(--admin-accent);margin-bottom:1rem;"></i>
-            <h2 style="margin-bottom:1rem;">Order #<span id="alertOrderNum">-</span></h2>
-            <p style="font-size:1.1rem;color:#64748b;margin-bottom:0.5rem;">Customer: <strong id="alertCustomer">-</strong></p>
-            <p style="font-size:1.5rem;font-weight:800;color:var(--admin-accent);margin-bottom:1rem;">Total: <span id="alertAmount">₱0.00</span></p>
-            <p style="font-size:0.9rem;color:#94a3b8;margin-bottom:2rem;">Received at: <span id="alertTime">-</span></p>
-            <div style="display:flex;gap:1rem;justify-content:center;">
-                <button class="btn btn-primary" onclick="viewOrderFromAlert()"><i class="fas fa-eye"></i> View Order</button>
-                <button class="btn btn-secondary" onclick="dismissAlert()"><i class="fas fa-times"></i> Dismiss</button>
+<div class="modal fade" id="quickEditModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-accent text-white">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Quick Edit Product</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="quick_update" value="1">
+                    <input type="hidden" name="product_id" id="edit_product_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">Product Image</label>
+                        <input type="file" name="product_image" accept="image/*" capture="environment" class="form-control">
+                        <small class="text-muted">Leave empty to keep current image</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">Product Name</label>
+                        <input type="text" name="product_name" id="edit_product_name" class="form-control" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold small text-uppercase">Price (₱)</label>
+                            <input type="number" step="0.01" name="price" id="edit_price" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small text-uppercase">Stock</label>
+                            <input type="number" name="stock" id="edit_stock" class="form-control" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
+<!-- New Product from Camera Modal -->
+<div class="modal fade" id="cameraModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-accent text-white">
+                <h5 class="modal-title"><i class="fas fa-camera me-2"></i>Add New Product</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <img id="cameraPreview" class="preview-image d-block mx-auto" alt="Captured image">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="add_new_product" value="1">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">Product Name</label>
+                        <input type="text" name="product_name" class="form-control" required placeholder="e.g., Chicken Adobo">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">Category</label>
+                        <select name="category_id" class="form-select" required>
+                            <?php foreach($categories as $id => $name): ?>
+                                <option value="<?= $id ?>"><?= $name ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold small text-uppercase">Price (₱)</label>
+                            <input type="number" step="0.01" name="price" class="form-control" required placeholder="0.00">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small text-uppercase">Stock</label>
+                            <input type="number" name="stock" class="form-control" required placeholder="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">Unit</label>
+                        <input type="text" name="unit" class="form-control" placeholder="e.g., 1 serving" value="1 serving">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        <i class="fas fa-plus me-2"></i>Add Product
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-let currentOrderId = null;
-let lastCheckedOrder = null;
-let isTabActive = true;
-
-// 1. Request Browser Notification Permission on load
-if ("Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission();
-}
-
-// Track if the admin is looking at the tab
-document.addEventListener("visibilitychange", () => {
-    isTabActive = document.visibilityState === "visible";
-    if (isTabActive) {
-        document.title = "Admin Dashboard - Meryll Eatery"; // Reset title
-    }
-});
+let cameraFile = null;
+const quickEditModal = new bootstrap.Modal(document.getElementById('quickEditModal'));
+const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
 
 function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('active');
-    document.getElementById('sidebarOverlay').classList.toggle('active');
-    document.body.style.overflow = document.getElementById('sidebar').classList.contains('active') ? 'hidden' : '';
+    document.getElementById('sidebar').classList.toggle('show');
+    document.querySelector('.sidebar-backdrop').classList.toggle('show');
 }
 
-// 2. Play Sound Alert (Works even if tab is in background)
-function playAlertSound() {
-    try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 880; // A5 note (loud and clear)
-        oscillator.type = 'sine';
-        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.8);
-        
-        // Double beep
-        setTimeout(() => {
-            const osc2 = audioContext.createOscillator();
-            const gain2 = audioContext.createGain();
-            osc2.connect(gain2);
-            gain2.connect(audioContext.destination);
-            osc2.frequency.value = 1100; 
-            osc2.type = 'sine';
-            gain2.gain.setValueAtTime(0.5, audioContext.currentTime);
-            gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
-            osc2.start(audioContext.currentTime);
-            osc2.stop(audioContext.currentTime + 0.8);
-        }, 300);
-    } catch (e) {
-        console.log("Audio play failed (user must interact with page first)");
-    }
-}
-
-// 3. Trigger Browser Notification (Works even if tab is minimized)
-function sendBrowserNotification(orderNum, amount) {
-    if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("🔔 New Order Received!", {
-            body: `Order #${orderNum} for ₱${amount}`,
-            icon: "https://cdn-icons-png.flaticon.com/512/3081/3081840.png", 
-            requireInteraction: true // Keeps notification on screen until clicked
-        });
-    }
-}
-
-// 4. Show On-Screen Popup & Blink Tab Title
-function showLargeAlert(orderData) {
-    currentOrderId = orderData.order_id;
-    
-    document.getElementById('alertOrderNum').textContent = orderData.order_number;
-    document.getElementById('alertCustomer').textContent = orderData.customer_name || 'Online Customer';
-    document.getElementById('alertAmount').textContent = '₱' + parseFloat(orderData.total_amount).toFixed(2);
-    document.getElementById('alertTime').textContent = new Date().toLocaleString();
-    
-    const modal = document.getElementById('orderAlertModal');
-    modal.classList.add('active'); // Use 'active' to match CSS
-    
-    playAlertSound();
-    sendBrowserNotification(orderData.order_number, parseFloat(orderData.total_amount).toFixed(2));
-    
-    // Blink tab title if admin is on another tab
-    if (!isTabActive) {
-        let blinkCount = 0;
-        const blinkInterval = setInterval(() => {
-            document.title = blinkCount % 2 === 0 ? "🔔 NEW ORDER!" : "Admin Dashboard - Meryll Eatery";
-            blinkCount++;
-            if (blinkCount > 10) {
-                clearInterval(blinkInterval);
-                document.title = "Admin Dashboard - Meryll Eatery";
-            }
-        }, 1000);
-    }
-    
-    // Auto-dismiss after 15 seconds
-    setTimeout(() => {
-        if (modal.classList.contains('active')) {
-            dismissAlert();
-        }
-    }, 15000);
-}
-
-function viewOrderFromAlert() {
-    if (currentOrderId) {
-        window.location.href = 'get_order_details.php?id=' + currentOrderId;
-    }
-}
-
-function dismissAlert() {
-    document.getElementById('orderAlertModal').classList.remove('active');
-    document.title = "Admin Dashboard - Meryll Eatery"; // Reset title
-    currentOrderId = null;
-}
-
-// 5. Real-Time Polling (Checks every 5 seconds)
-function checkNewOrders() {
-    fetch('check_new_orders.php')
-        .then(r => r.json())
-        .then(data => {
-            if (data.has_new_order) {
-                if (data.order_id !== lastCheckedOrder) {
-                    lastCheckedOrder = data.order_id;
-                    showLargeAlert(data);
-                    
-                    // Update notification badge
-                    fetch('update_notification_count.php')
-                        .then(r => r.json())
-                        .then(countData => {
-                            const badge = document.querySelector('.notif-badge');
-                            if (countData.count > 0 && badge) {
-                                badge.textContent = countData.count;
-                                badge.style.display = 'flex';
-                            }
-                        });
-                }
-            }
-        })
-        .catch(err => console.log('Polling error:', err));
-}
-
-// Start polling
-setInterval(checkNewOrders, 5000);
-checkNewOrders(); // Run immediately on load
-
-// Camera Upload Logic
-let cameraFile = null;
 function handleCameraUpload(input) {
     if (input.files && input.files[0]) {
         cameraFile = input.files[0];
         const reader = new FileReader();
         reader.onload = function(e) {
             document.getElementById('cameraPreview').src = e.target.result;
-            document.getElementById('cameraModal').classList.add('active');
+            cameraModal.show();
         };
         reader.readAsDataURL(cameraFile);
     }
 }
-function closeCameraModal() {
-    document.getElementById('cameraModal').classList.remove('active');
-    cameraFile = null;
-}
 
-// Quick Edit Logic
 function openQuickEdit(product) {
     document.getElementById('edit_product_id').value = product.productID;
     document.getElementById('edit_product_name').value = product.productname;
     document.getElementById('edit_price').value = product.price;
     document.getElementById('edit_stock').value = product.stock;
-    document.getElementById('quickEditModal').classList.add('active');
+    quickEditModal.show();
 }
-function closeQuickEdit() { document.getElementById('quickEditModal').classList.remove('active'); }
 
-// Filter Logic
-function filterProducts(filter) {
-    document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
-    event.target.classList.add('active');
-    const cards = document.querySelectorAll('.product-card');
-    cards.forEach(card => {
-        const category = parseInt(card.dataset.category);
-        const visible = parseInt(card.dataset.visible);
-        if (filter === 'all') card.style.display = 'block';
-        else if (filter === 'visible') card.style.display = visible === 1 ? 'block' : 'none';
-        else if (filter === 'hidden') card.style.display = visible === 0 ? 'block' : 'none';
-        else if (filter === 'ulam') card.style.display = category === 1 ? 'block' : 'none';
+function filterProducts(filter, btn) {
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    const items = document.querySelectorAll('.product-item');
+    items.forEach(item => {
+        const category = parseInt(item.dataset.category);
+        const visible = parseInt(item.dataset.visible);
+        
+        if (filter === 'all') item.style.display = '';
+        else if (filter === 'visible') item.style.display = visible === 1 ? '' : 'none';
+        else if (filter === 'hidden') item.style.display = visible === 0 ? '' : 'none';
+        else if (filter === 'ulam') item.style.display = category === 1 ? '' : 'none';
     });
 }
-
-// Close modals when clicking outside
-document.getElementById('quickEditModal').addEventListener('click', function(e) { if (e.target === this) closeQuickEdit(); });
-document.getElementById('cameraModal').addEventListener('click', function(e) { if (e.target === this) closeCameraModal(); });
-document.getElementById('orderAlertModal').addEventListener('click', function(e) { if (e.target === this) dismissAlert(); });
 </script>
-
 </body>
 </html>
