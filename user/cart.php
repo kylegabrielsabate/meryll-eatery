@@ -50,7 +50,7 @@ textarea.form-control{resize:vertical;min-height:80px}
 .btn-checkout{width:100%;padding:14px;background:var(--brand-red);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1.1rem;cursor:pointer;margin-top:1.5rem}
 .btn-checkout:disabled{background:#ccc;cursor:not-allowed}
 
-/* ✅ GCASH SECTION */
+/* GCash Styles */
 .gcash-details{display:none;background:#e7f3ff;border:2px solid #007bff;border-radius:12px;padding:1.5rem;margin-top:1rem;animation:slideDown .3s ease}
 .gcash-details.show{display:block}
 @keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
@@ -104,6 +104,14 @@ textarea.form-control{resize:vertical;min-height:80px}
                 <label for="pickup_time" id="timeLabel">What time will you pick it up?</label>
                 <input type="time" id="pickup_time" name="pickup_time" class="form-control" required>
             </div>
+            
+            <!-- ✅ PHONE NUMBER FIELD (required for Pick-up/Delivery) -->
+            <div class="form-group">
+                <label for="customer_phone">📱 Contact Number <span id="phoneRequired" class="text-danger">*</span></label>
+                <input type="tel" id="customer_phone" name="customer_phone" class="form-control" placeholder="09XX XXX XXXX" required>
+                <small class="text-muted" style="font-size:0.8rem">We'll use this to contact you about your order</small>
+            </div>
+            
             <div class="form-group">
                 <label>Payment Method</label>
                 <div class="order-types" style="grid-template-columns:repeat(2, 1fr)">
@@ -112,7 +120,7 @@ textarea.form-control{resize:vertical;min-height:80px}
                 </div>
             </div>
 
-            <!-- ✅ GCASH STORE NUMBER + PROOF UPLOAD -->
+            <!-- GCash Section -->
             <div class="gcash-details" id="gcashDetails">
                 <div class="gcash-number-box">
                     <div class="gcash-number">0966 953 1004</div>
@@ -169,12 +177,24 @@ document.addEventListener('DOMContentLoaded', loadCartSummary);
 function updateTimeLabel() {
     const type = document.querySelector('input[name="order_type"]:checked').value;
     const label = document.getElementById('timeLabel');
-    if (type === 'Dine-in') label.textContent = 'What time will you eat?';
-    else if (type === 'Pick-up') label.textContent = 'What time will you pick it up?';
-    else label.textContent = 'What time should we deliver?';
+    const phoneInput = document.getElementById('customer_phone');
+    const phoneRequired = document.getElementById('phoneRequired');
+    
+    if (type === 'Dine-in') {
+        label.textContent = 'What time will you eat?';
+        phoneInput.required = false;
+        phoneRequired.style.display = 'none';
+    } else if (type === 'Pick-up') {
+        label.textContent = 'What time will you pick it up?';
+        phoneInput.required = true;
+        phoneRequired.style.display = 'inline';
+    } else {
+        label.textContent = 'What time should we deliver?';
+        phoneInput.required = true;
+        phoneRequired.style.display = 'inline';
+    }
 }
 
-// ✅ SHOW/HIDE GCASH SECTION
 function toggleGcash() {
     const payment = document.querySelector('input[name="payment_method"]:checked').value;
     const box = document.getElementById('gcashDetails');
@@ -259,10 +279,18 @@ function handleNotifAction() {
     if (redirectUrl) window.location.href = redirectUrl;
 }
 
-// ✅ UPDATED: sends proof image via FormData when GCash
 function placeOrder() {
     const time = document.getElementById('pickup_time').value;
+    const phone = document.getElementById('customer_phone').value.trim();
+    const orderType = document.querySelector('input[name="order_type"]:checked').value;
+    
     if (!time) { showNotif('error', 'Missing Info', 'Please select a pickup time!'); return; }
+    
+    // ✅ Validate phone for Pick-up/Delivery
+    if ((orderType === 'Pick-up' || orderType === 'Delivered') && !phone) {
+        showNotif('error', 'Phone Required', 'Please provide your contact number so we can reach you!');
+        return;
+    }
     
     const payment = document.querySelector('input[name="payment_method"]:checked').value;
     const proofInput = document.getElementById('gcash_proof');
@@ -278,9 +306,10 @@ function placeOrder() {
 
     const fd = new FormData();
     fd.append('action', 'checkout');
-    fd.append('order_type', document.querySelector('input[name="order_type"]:checked').value);
+    fd.append('order_type', orderType);
     fd.append('payment_method', payment);
     fd.append('pickup_time', time);
+    fd.append('customer_phone', phone);
     fd.append('order_note', document.getElementById('order_note').value);
     if (payment === 'GCash') fd.append('gcash_proof', proofInput.files[0]);
 
