@@ -28,4 +28,8 @@ if ($is_cloud) {
 if (!mysqli_real_connect($con, $host, $user, $pass, $db, $port, NULL, $flags)) {
     die("Connection failed: " . mysqli_connect_error());
 }
+
+// ✅ PHILIPPINE TIMEZONE FIX - Add after successful connection
+date_default_timezone_set('Asia/Manila');
+$con->query("SET time_zone = '+08:00'");
 ?>
