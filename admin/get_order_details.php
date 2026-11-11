@@ -34,7 +34,8 @@ $recent_orders = $stmt_list->get_result();
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Order Details - Meryll Eatery</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -106,10 +107,33 @@ $recent_orders = $stmt_list->get_result();
                             <small class="text-muted fw-bold text-uppercase d-block">Total Amount</small>
                             <span class="fw-bold fs-4 text-accent">₱<?= number_format($order['total_amount'], 2) ?></span>
                         </div>
-                        <?php if (!empty($order['order_note'])): ?>
+                        <?php if (!empty($order['special_instructions'])): ?>
                             <div class="bg-light rounded p-3 mt-2">
                                 <small class="text-muted fw-bold text-uppercase d-block">Customer Notes</small>
-                                <span><?= htmlspecialchars($order['order_note']) ?></span>
+                                <span><?= htmlspecialchars($order['special_instructions']) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <!-- ✅ GCash Proof Section -->
+                        <?php if ($order['payment_method'] === 'GCash' && !empty($order['gcash_proof'])): ?>
+                            <div class="bg-info bg-opacity-10 border border-info rounded p-3 mt-3">
+                                <small class="text-info fw-bold text-uppercase d-block mb-2">
+                                    <i class="fas fa-receipt me-1"></i> GCash Proof of Payment
+                                </small>
+                                <a href="../uploads/proofs/<?= htmlspecialchars($order['gcash_proof']) ?>" target="_blank" class="btn btn-sm btn-info mb-2">
+                                    <i class="fas fa-external-link-alt me-1"></i> View Full Image
+                                </a>
+                                <img src="../uploads/proofs/<?= htmlspecialchars($order['gcash_proof']) ?>" 
+                                     alt="GCash Receipt" 
+                                     class="img-fluid rounded border"
+                                     style="max-height: 300px; width: 100%; object-fit: contain;">
+                            </div>
+                        <?php elseif ($order['payment_method'] === 'GCash'): ?>
+                            <div class="bg-warning bg-opacity-10 border border-warning rounded p-3 mt-3">
+                                <small class="text-warning fw-bold text-uppercase d-block">
+                                    <i class="fas fa-exclamation-triangle me-1"></i> No Proof Uploaded
+                                </small>
+                                <span class="text-muted small">Customer selected GCash but did not upload receipt.</span>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -197,9 +221,14 @@ $recent_orders = $stmt_list->get_result();
                                     <td>₱<?= number_format($row['total_amount'], 2) ?></td>
                                     <td><span class="badge bg-secondary"><?= htmlspecialchars($row['status']) ?></span></td>
                                     <td>
-                                        <a href="get_order_details.php?id=<?= $row['order_id'] ?>" class="btn btn-sm btn-primary">
+                                        <a href="get_order_details.php?id=<?= $row['order_id'] ?>" class="btn btn-sm btn-primary me-1">
                                             <i class="fas fa-eye me-1"></i>View
                                         </a>
+                                        <?php if ($row['payment_method'] === 'GCash' && !empty($row['gcash_proof'])): ?>
+                                            <a href="../uploads/proofs/<?= htmlspecialchars($row['gcash_proof']) ?>" target="_blank" class="btn btn-sm btn-info" title="View GCash Receipt">
+                                                <i class="fas fa-receipt"></i>
+                                            </a>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                                 <?php endwhile; ?>

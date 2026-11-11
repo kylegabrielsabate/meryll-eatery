@@ -46,180 +46,211 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
     } elseif (empty($pickup_time)) {
         $error = 'Please specify your preferred time.';
     } else {
-        $con->begin_transaction();
-        try {
-            // Generate unique Order Number
-            $order_number = 'KB-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
-            $status = 'Pending';
-
-            // Insert order
-            $stmt = $con->prepare("INSERT INTO orders (user_id, order_number, order_type, pickup_time, payment_method, total_amount, status, special_instructions) VALUES (?,?,?,?,?,?,?,?)");
-            $stmt->bind_param("issssdss", $user_id, $order_number, $fulfillment, $pickup_time, $payment, $total, $status, $notes);
-            $stmt->execute();
-            $order_id = $con->insert_id;
-
-            // Insert order items
-            $stmt2 = $con->prepare("INSERT INTO order_items (order_id, item_name, quantity, price) VALUES (?,?,?,?)");
-            foreach ($items as $it) {
-                $stmt2->bind_param("isid", $order_id, $it['name'], $it['qty'], $it['price']);
-                $stmt2->execute();
-            }
-
-            $con->commit();
-
-            // Deduct fried rice stock if applicable
-            foreach ($items as $it) {
-                if (stripos($it['name'], 'Fried Rice') !== false) {
-                    if ($_SESSION['fried_rice_stock'] > 0) $_SESSION['fried_rice_stock']--;
+        // Handle GCash proof upload
+        $gcash_proof = null;
+        if ($payment === 'GCash') {
+            if (!isset($_FILES['gcash_proof']) || $_FILES['gcash_proof']['error'] !== 0) {
+                $error = 'Please upload your GCash proof of payment.';
+            } else {
+                $upload_dir = '../uploads/proofs/';
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                $file_ext = strtolower(pathinfo($_FILES['gcash_proof']['name'], PATHINFO_EXTENSION));
+                $allowed_ext = ['jpg', 'jpeg', 'png', 'gif'];
+                
+                if (!in_array($file_ext, $allowed_ext)) {
+                    $error = 'Invalid file type. Only JPG, PNG, and GIF are allowed.';
+                } else {
+                    $new_filename = 'proof_' . $user_id . '_' . time() . '.' . $file_ext;
+                    $upload_path = $upload_dir . $new_filename;
+                    
+                    if (move_uploaded_file($_FILES['gcash_proof']['tmp_name'], $upload_path)) {
+                        $gcash_proof = $new_filename;
+                    } else {
+                        $error = 'Failed to upload proof of payment.';
+                    }
                 }
             }
+        }
+        
+        if (empty($error)) {
+            $con->begin_transaction();
+            try {
+                // Generate unique Order Number
+                $order_number = 'KB-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
+                $status = 'Pending';
 
-            // ========== SEND CONFIRMATION EMAIL ==========
-            $email_subject = "Order Confirmation - " . $order_number;
-            
-            $email_html = "
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden; }
-                    .header { background: #8B0000; color: #fff; padding: 25px; text-align: center; }
-                    .header h1 { margin: 0; font-size: 24px; }
-                    .content { padding: 25px; }
-                    .greeting { font-size: 16px; margin-bottom: 20px; }
-                    .order-box { background: #f8f9fa; border-left: 4px solid #8B0000; padding: 15px; margin: 20px 0; }
-                    .order-number { font-size: 20px; font-weight: bold; color: #8B0000; margin-bottom: 10px; }
-                    .detail-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
-                    .detail-label { font-weight: 600; color: #555; }
-                    .detail-value { color: #333; }
-                    .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                    .items-table th { background: #8B0000; color: #fff; padding: 12px; text-align: left; font-size: 14px; }
-                    .items-table td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
-                    .items-table .qty { text-align: center; }
-                    .items-table .price { text-align: right; }
-                    .total-row { font-weight: bold; font-size: 16px; background: #f8f9fa; }
-                    .total-row td { padding: 15px 12px; border-top: 2px solid #8B0000; }
-                    .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #eee; }
-                    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-                    .badge-dine { background: #d4edda; color: #155724; }
-                    .badge-pickup { background: #fff3cd; color: #856404; }
-                    .badge-delivered { background: #cce5ff; color: #004085; }
-                </style>
-            </head>
-            <body>
-                <div class='container'>
-                    <div class='header'>
-                        <h1>🍽️ Meryll Eatery</h1>
-                        <p style='margin: 5px 0 0 0; opacity: 0.9;'>Order Confirmation</p>
-                    </div>
-                    <div class='content'>
-                        <div class='greeting'>
-                            Hi <b>" . htmlspecialchars($username) . "</b>,<br>
-                            Thank you for your order! Here are your order details:
-                        </div>
-                        
-                        <div class='order-box'>
-                            <div class='order-number'>📋 Order #" . htmlspecialchars($order_number) . "</div>
-                            <div class='detail-row'>
-                                <span class='detail-label'>Status:</span>
-                                <span class='detail-value'><span class='badge badge-dine'>Pending</span></span>
-                            </div>
-                            <div class='detail-row'>
-                                <span class='detail-label'>Order Type:</span>
-                                <span class='detail-value'>" . htmlspecialchars($fulfillment) . "</span>
-                            </div>
-                            <div class='detail-row'>
-                                <span class='detail-label'>Preferred Time:</span>
-                                <span class='detail-value'>" . htmlspecialchars($pickup_time) . "</span>
-                            </div>
-                            <div class='detail-row'>
-                                <span class='detail-label'>Payment Method:</span>
-                                <span class='detail-value'>" . htmlspecialchars($payment) . "</span>
-                            </div>
-                        </div>
+                // Insert order with gcash_proof
+                $stmt = $con->prepare("INSERT INTO orders (user_id, order_number, order_type, pickup_time, payment_method, total_amount, status, special_instructions, gcash_proof) VALUES (?,?,?,?,?,?,?,?,?)");
+                $stmt->bind_param("issssdsss", $user_id, $order_number, $fulfillment, $pickup_time, $payment, $total, $status, $notes, $gcash_proof);
+                $stmt->execute();
+                $order_id = $con->insert_id;
 
-                        <h3 style='margin: 25px 0 15px 0; color: #333;'>📝 Order Items</h3>
-                        <table class='items-table'>
-                            <thead>
-                                <tr>
-                                    <th>Item</th>
-                                    <th class='qty'>Qty</th>
-                                    <th class='price'>Price</th>
-                                    <th class='price'>Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody>";
-            
-            foreach ($items as $it) {
+                // Insert order items
+                $stmt2 = $con->prepare("INSERT INTO order_items (order_id, item_name, quantity, price) VALUES (?,?,?,?)");
+                foreach ($items as $it) {
+                    $stmt2->bind_param("isid", $order_id, $it['name'], $it['qty'], $it['price']);
+                    $stmt2->execute();
+                }
+
+                $con->commit();
+
+                // Deduct fried rice stock if applicable
+                foreach ($items as $it) {
+                    if (stripos($it['name'], 'Fried Rice') !== false) {
+                        if ($_SESSION['fried_rice_stock'] > 0) $_SESSION['fried_rice_stock']--;
+                    }
+                }
+
+                // ========== SEND CONFIRMATION EMAIL ==========
+                $email_subject = "Order Confirmation - " . $order_number;
+                
+                $email_html = "
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                        .container { max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden; }
+                        .header { background: #8B0000; color: #fff; padding: 25px; text-align: center; }
+                        .header h1 { margin: 0; font-size: 24px; }
+                        .content { padding: 25px; }
+                        .greeting { font-size: 16px; margin-bottom: 20px; }
+                        .order-box { background: #f8f9fa; border-left: 4px solid #8B0000; padding: 15px; margin: 20px 0; }
+                        .order-number { font-size: 20px; font-weight: bold; color: #8B0000; margin-bottom: 10px; }
+                        .detail-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
+                        .detail-label { font-weight: 600; color: #555; }
+                        .detail-value { color: #333; }
+                        .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                        .items-table th { background: #8B0000; color: #fff; padding: 12px; text-align: left; font-size: 14px; }
+                        .items-table td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+                        .items-table .qty { text-align: center; }
+                        .items-table .price { text-align: right; }
+                        .total-row { font-weight: bold; font-size: 16px; background: #f8f9fa; }
+                        .total-row td { padding: 15px 12px; border-top: 2px solid #8B0000; }
+                        .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #eee; }
+                        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+                        .badge-dine { background: #d4edda; color: #155724; }
+                        .badge-pickup { background: #fff3cd; color: #856404; }
+                        .badge-delivered { background: #cce5ff; color: #004085; }
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <div class='header'>
+                            <h1>🍽️ Meryll Eatery</h1>
+                            <p style='margin: 5px 0 0 0; opacity: 0.9;'>Order Confirmation</p>
+                        </div>
+                        <div class='content'>
+                            <div class='greeting'>
+                                Hi <b>" . htmlspecialchars($username) . "</b>,<br>
+                                Thank you for your order! Here are your order details:
+                            </div>
+                            
+                            <div class='order-box'>
+                                <div class='order-number'>📋 Order #" . htmlspecialchars($order_number) . "</div>
+                                <div class='detail-row'>
+                                    <span class='detail-label'>Status:</span>
+                                    <span class='detail-value'><span class='badge badge-dine'>Pending</span></span>
+                                </div>
+                                <div class='detail-row'>
+                                    <span class='detail-label'>Order Type:</span>
+                                    <span class='detail-value'>" . htmlspecialchars($fulfillment) . "</span>
+                                </div>
+                                <div class='detail-row'>
+                                    <span class='detail-label'>Preferred Time:</span>
+                                    <span class='detail-value'>" . htmlspecialchars($pickup_time) . "</span>
+                                </div>
+                                <div class='detail-row'>
+                                    <span class='detail-label'>Payment Method:</span>
+                                    <span class='detail-value'>" . htmlspecialchars($payment) . "</span>
+                                </div>
+                            </div>
+
+                            <h3 style='margin: 25px 0 15px 0; color: #333;'>📝 Order Items</h3>
+                            <table class='items-table'>
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class='qty'>Qty</th>
+                                        <th class='price'>Price</th>
+                                        <th class='price'>Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>";
+                
+                foreach ($items as $it) {
+                    $email_html .= "
+                                    <tr>
+                                        <td>" . htmlspecialchars($it['name']) . "</td>
+                                        <td class='qty'>" . intval($it['qty']) . "</td>
+                                        <td class='price'>₱" . number_format($it['price'], 2) . "</td>
+                                        <td class='price'>₱" . number_format($it['subtotal'], 2) . "</td>
+                                    </tr>";
+                }
+                
                 $email_html .= "
-                                <tr>
-                                    <td>" . htmlspecialchars($it['name']) . "</td>
-                                    <td class='qty'>" . intval($it['qty']) . "</td>
-                                    <td class='price'>₱" . number_format($it['price'], 2) . "</td>
-                                    <td class='price'>₱" . number_format($it['subtotal'], 2) . "</td>
-                                </tr>";
-            }
-            
-            $email_html .= "
-                                <tr class='total-row'>
-                                    <td colspan='3' style='text-align: right;'>TOTAL:</td>
-                                    <td class='price' style='color: #8B0000; font-size: 18px;'>₱" . number_format($total, 2) . "</td>
-                                </tr>
-                            </tbody>
-                        </table>";
-            
-            if (!empty($notes)) {
+                                    <tr class='total-row'>
+                                        <td colspan='3' style='text-align: right;'>TOTAL:</td>
+                                        <td class='price' style='color: #8B0000; font-size: 18px;'>₱" . number_format($total, 2) . "</td>
+                                    </tr>
+                                </tbody>
+                            </table>";
+                
+                if (!empty($notes)) {
+                    $email_html .= "
+                            <div style='background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0;'>
+                                <b>📌 Special Instructions:</b><br>
+                                " . htmlspecialchars($notes) . "
+                            </div>";
+                }
+                
                 $email_html .= "
-                        <div style='background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0;'>
-                            <b>📌 Special Instructions:</b><br>
-                            " . htmlspecialchars($notes) . "
-                        </div>";
-            }
-            
-            $email_html .= "
-                        <div style='background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 15px; margin: 20px 0;'>
-                            <b>ℹ️ What's Next?</b><br>
-                            <ul style='margin: 10px 0; padding-left: 20px;'>
-                                <li>Our kitchen staff will prepare your order</li>
-                                <li>You'll receive updates on your order status</li>
-                                <li>Show your <b>Order Number</b> at the counter when picking up</li>
-                                <li>For dine-in, proceed to the canteen at your preferred time</li>
-                            </ul>
+                            <div style='background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 15px; margin: 20px 0;'>
+                                <b>ℹ️ What's Next?</b><br>
+                                <ul style='margin: 10px 0; padding-left: 20px;'>
+                                    <li>Our kitchen staff will prepare your order</li>
+                                    <li>You'll receive updates on your order status</li>
+                                    <li>Show your <b>Order Number</b> at the counter when picking up</li>
+                                    <li>For dine-in, proceed to the canteen at your preferred time</li>
+                                </ul>
+                            </div>
+                            
+                            <p style='color: #777; font-size: 13px; margin-top: 25px;'>
+                                If you have any questions about your order, please contact us at the canteen.
+                            </p>
                         </div>
-                        
-                        <p style='color: #777; font-size: 13px; margin-top: 25px;'>
-                            If you have any questions about your order, please contact us at the canteen.
-                        </p>
+                        <div class='footer'>
+                            <p><b>Meryll Eatery</b><br>
+                            Serving delicious meals with care!<br>
+                            This is an automated confirmation email.</p>
+                        </div>
                     </div>
-                    <div class='footer'>
-                        <p><b>Meryll Eatery</b><br>
-                        Serving delicious meals with care!<br>
-                        This is an automated confirmation email.</p>
-                    </div>
-                </div>
-            </body>
-            </html>";
+                </body>
+                </html>";
 
-            // Send the email
-            $email_sent = sendMail($user_email, $email_subject, $email_html);
+                // Send the email
+                $email_sent = sendMail($user_email, $email_subject, $email_html);
 
-            // Clear cart
-            $_SESSION['cart'] = [];
-            
-            $order_success = $order_number;
-            $success_details = [
-                'fulfillment' => $fulfillment,
-                'time' => $pickup_time,
-                'payment' => $payment,
-                'notes' => $notes,
-                'total' => $total,
-                'items' => $items,
-                'email_sent' => $email_sent['success']
-            ];
-        } catch (Exception $e) {
-            $con->rollback();
-            $error = 'Checkout failed. Please try again.';
+                // Clear cart
+                $_SESSION['cart'] = [];
+                
+                $order_success = $order_number;
+                $success_details = [
+                    'fulfillment' => $fulfillment,
+                    'time' => $pickup_time,
+                    'payment' => $payment,
+                    'notes' => $notes,
+                    'total' => $total,
+                    'items' => $items,
+                    'email_sent' => $email_sent['success']
+                ];
+            } catch (Exception $e) {
+                $con->rollback();
+                $error = 'Checkout failed. Please try again.';
+            }
         }
     }
 }
@@ -288,6 +319,23 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
 .email-status.error{background:#f8d7da;border-left-color:#dc3545;color:#721c24}
 .toast{position:fixed;bottom:30px;right:30px;background:var(--brand-red);color:#fff;padding:14px 24px;border-radius:10px;font-weight:600;transform:translateY(100px);opacity:0;transition:all .3s;z-index:9999}
 .toast.show{transform:translateY(0);opacity:1}
+
+/* GCash Styles */
+.gcash-details{display:none;background:#e7f3ff;border:2px solid #007bff;border-radius:12px;padding:1.5rem;margin-top:1rem}
+.gcash-details.show{display:block}
+.gcash-number-box{background:#fff;border-radius:10px;padding:1.2rem;text-align:center;margin-bottom:1rem;border:2px solid #007bff}
+.gcash-number{font-size:2rem;font-weight:800;color:#007bff;letter-spacing:3px}
+.gcash-name{font-size:1rem;color:#6c757d;margin-top:0.3rem;font-weight:600}
+.gcash-instructions{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:.9rem;color:#856404}
+.gcash-instructions strong{display:block;margin-bottom:.5rem;font-size:1rem}
+.gcash-instructions ol{margin-left:1.2rem;margin-top:.5rem}
+.gcash-instructions li{margin-bottom:.3rem}
+.proof-upload{margin-top:1rem}
+.proof-upload label{display:block;font-weight:600;font-size:.9rem;margin-bottom:.5rem;color:var(--text-dark)}
+.proof-upload input[type="file"]{width:100%;padding:.75rem;border:2px dashed #007bff;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit}
+.proof-upload input[type="file"]:hover{border-color:var(--brand-red)}
+.proof-preview{margin-top:1rem;text-align:center}
+.proof-preview img{max-width:100%;max-height:250px;border-radius:8px;border:2px solid #e9ecef}
 </style>
 </head>
 <body>
@@ -306,7 +354,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
         <?php if (!empty($success_details['notes'])): ?>
         <div><b>Notes:</b> <?=htmlspecialchars($success_details['notes'])?></div>
         <?php endif; ?>
-        <div><b>Total:</b> <?=number_format($success_details['total'],2)?></div>
+        <div><b>Total:</b> ₱<?=number_format($success_details['total'],2)?></div>
         <?php if (!$success_details['email_sent']): ?>
         <div style="margin-top:10px;padding:10px;background:#fff3cd;border-radius:6px;font-size:.85rem;color:#856404">
             <i class="bi bi-exclamation-triangle"></i> Note: We couldn't send the confirmation email, but your order was saved successfully!
@@ -326,7 +374,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
 
     <?php if ($error): ?><div class="alert-error"><i class="bi bi-exclamation-circle"></i> <?=htmlspecialchars($error)?></div><?php endif; ?>
 
-    <form method="POST" action="" id="checkoutForm">
+    <form method="POST" action="" id="checkoutForm" enctype="multipart/form-data">
         <div class="grid">
             <!-- LEFT: Options -->
             <div>
@@ -384,6 +432,31 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
                         </div>
                     </div>
                     <input type="hidden" name="payment" id="paymentInput" value="Cash">
+                    
+                    <!-- GCash Details -->
+                    <div class="gcash-details" id="gcashDetails">
+                        <div class="gcash-number-box">
+                            <div class="gcash-number">0966 953 1004</div>
+                            <div class="gcash-name">Meryll</div>
+                        </div>
+                        
+                        <div class="gcash-instructions">
+                            <strong><i class="bi bi-info-circle"></i> How to pay:</strong>
+                            <ol>
+                                <li>Open your GCash app</li>
+                                <li>Send money to <strong>0966 953 1004</strong></li>
+                                <li>Enter amount: <strong>₱<?= number_format($total, 2) ?></strong></li>
+                                <li>Take a screenshot of the transaction</li>
+                                <li>Upload the screenshot below</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="proof-upload">
+                            <label for="gcash_proof"><i class="bi bi-cloud-upload"></i> Upload Proof of Payment *</label>
+                            <input type="file" name="gcash_proof" id="gcash_proof" accept="image/*" onchange="previewProof(this)">
+                            <div class="proof-preview" id="proofPreview"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -429,6 +502,30 @@ function selectPayment(el){
     document.querySelectorAll('.pay-option').forEach(e=>e.classList.remove('selected'));
     el.classList.add('selected');
     document.getElementById('paymentInput').value = el.dataset.value;
+    
+    const gcashDetails = document.getElementById('gcashDetails');
+    const proofInput = document.getElementById('gcash_proof');
+    
+    if (el.dataset.value === 'GCash') {
+        gcashDetails.classList.add('show');
+        proofInput.required = true;
+    } else {
+        gcashDetails.classList.remove('show');
+        proofInput.required = false;
+        proofInput.value = '';
+        document.getElementById('proofPreview').innerHTML = '';
+    }
+}
+
+function previewProof(input) {
+    const preview = document.getElementById('proofPreview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = '<img src="' + e.target.result + '" alt="Proof of payment">';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
 }
 
 document.getElementById('checkoutForm')?.addEventListener('submit', function(e){
@@ -436,6 +533,17 @@ document.getElementById('checkoutForm')?.addEventListener('submit', function(e){
     if (!f) {
         e.preventDefault();
         showToast('⚠️ Please choose Dine-in, Delivered, or Pick-up!');
+        return;
+    }
+    
+    const payment = document.getElementById('paymentInput').value;
+    if (payment === 'GCash') {
+        const proofInput = document.getElementById('gcash_proof');
+        if (!proofInput.files || proofInput.files.length === 0) {
+            e.preventDefault();
+            showToast('⚠️ Please upload your GCash proof of payment!');
+            return;
+        }
     }
 });
 </script>

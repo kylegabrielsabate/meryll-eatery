@@ -47,7 +47,6 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
 
         <div class="card border-0 shadow-sm">
             <div class="card-body p-0">
-                <!-- ✅ NATIVE BOOTSTRAP SCROLLING -->
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
@@ -62,7 +61,16 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
                                 <td><?= htmlspecialchars($r['pickup_time']) ?></td>
                                 <td class="fw-bold">₱<?= number_format($r['total_amount'], 2) ?></td>
                                 <td><span class="badge bg-secondary"><?= htmlspecialchars($r['status']) ?></span></td>
-                                <td><a href="get_order_details.php?id=<?= $r['order_id'] ?>" class="btn btn-sm btn-primary"><i class="fas fa-eye"></i> View</a></td>
+                                <td>
+                                    <a href="get_order_details.php?id=<?= $r['order_id'] ?>" class="btn btn-sm btn-primary me-1">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <?php if ($r['payment_method'] === 'GCash' && !empty($r['gcash_proof'])): ?>
+                                        <a href="../uploads/proofs/<?= htmlspecialchars($r['gcash_proof']) ?>" target="_blank" class="btn btn-sm btn-info" title="View GCash Receipt">
+                                            <i class="fas fa-receipt"></i> Receipt
+                                        </a>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                             <?php endwhile; ?>
                         </tbody>
