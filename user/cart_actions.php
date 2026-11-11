@@ -45,12 +45,14 @@ function checkItemAvailability($con, $cart) {
     $unavailable = [];
     foreach ($cart as $key => $item) {
         if (isset($item['productID']) && $item['productID'] > 0) {
-            $stmt = $con->prepare("SELECT is_available FROM products WHERE productID = ?");
+            $stmt = $con->prepare("SELECT is_available, stock FROM products WHERE productID = ?");
             $stmt->bind_param("i", $item['productID']);
             $stmt->execute();
             $res = $stmt->get_result();
             if ($row = $res->fetch_assoc()) {
-                if ($row['is_available'] == 0) $unavailable[$key] = $item['name'];
+                if ($row['is_available'] == 0 || (int)$row['stock'] <= 0) {
+                    $unavailable[$key] = $item['name'];
+                }
             }
         }
     }
@@ -219,6 +221,15 @@ switch ($action) {
         $unavailable = checkItemAvailability($con, $_SESSION['cart']);
         $items = [];
         foreach ($_SESSION['cart'] as $key => $item) {
+            // ✅ Fetch current live stock from DB
+            $stock = 999;
+            if (!empty($item['productID']) && $item['productID'] > 0) {
+                $st = $con->prepare("SELECT stock FROM products WHERE productID = ?");
+                $st->bind_param("i", $item['productID']);
+                $st->execute();
+                $sr = $st->get_result()->fetch_assoc();
+                if ($sr) $stock = (int)$sr['stock'];
+            }
             $items[] = [
                 'cart_key' => $key, 
                 'productID' => $item['productID'], 
@@ -226,7 +237,8 @@ switch ($action) {
                 'price' => $item['price'], 
                 'quantity' => $item['quantity'], 
                 'subtotal' => $item['price'] * $item['quantity'], 
-                'is_available' => !isset($unavailable[$key])
+                'is_available' => !isset($unavailable[$key]),
+                'stock' => $stock // ✅ Send stock to frontend for badges
             ];
         }
         echo json_encode([
@@ -278,7 +290,14 @@ switch ($action) {
         $payment_method = $_POST['payment_method'] ?? 'Cash';
         $pickup_time = $_POST['pickup_time'] ?? '';
         $order_note = $_POST['order_note'] ?? '';
+        $customer_phone = trim($_POST['customer_phone'] ?? ''); // ✅ Get phone
         $order_number = generateOrderNumber($con);
+
+        // ✅ Validate phone for Pick-up/Delivery
+        if (($order_type === 'Pick-up' || $order_type === 'Delivered') && empty($customer_phone)) {
+            echo json_encode(['success' => false, 'message' => 'Please provide your contact number.']);
+            exit();
+        }
 
         // ✅ GCASH PROOF OF PAYMENT UPLOAD
         $gcash_proof = null;
@@ -311,10 +330,10 @@ switch ($action) {
             if ($row = $res->fetch_assoc()) $maxOrderId = $row['max_id'] ? $row['max_id'] : 0;
             $newOrderId = $maxOrderId + 1;
 
-            // ✅ INSERT now includes gcash_proof (and fixed bind types: order_note=s, total=d)
-            $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, payment_method, pickup_time, order_note, total_amount, status, gcash_proof, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            // ✅ INSERT now includes customer_phone and gcash_proof
+            $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, customer_phone, payment_method, pickup_time, order_note, total_amount, status, gcash_proof, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
             if (!$stmt) throw new Exception("Prepare failed: " . $con->error);
-            $stmt->bind_param("iisssssdss", $newOrderId, $user_id, $order_number, $order_type, $payment_method, $pickup_time, $order_note, $total_amount, $status, $gcash_proof);
+            $stmt->bind_param("iisssssdsss", $newOrderId, $user_id, $order_number, $order_type, $customer_phone, $payment_method, $pickup_time, $order_note, $total_amount, $status, $gcash_proof);
             $stmt->execute();
 
             // Add to order_status table
@@ -335,6 +354,18 @@ switch ($action) {
                 $stmt_item->execute();
                 $newItemId++;
             }
+            
+            // ✅ LIVE STOCK DEDUCTION (Only for items with valid productID)
+            $stmt_stock = $con->prepare("UPDATE products SET stock = stock - ? WHERE productID = ? AND stock >= ?");
+            foreach ($_SESSION['cart'] as $item) {
+                if (!empty($item['productID']) && $item['productID'] > 0) {
+                    $qty = $item['quantity'];
+                    $pid = $item['productID'];
+                    $stmt_stock->bind_param("iii", $qty, $pid, $qty);
+                    $stmt_stock->execute();
+                }
+            }
+            $stmt_stock->close();
             
             $con->commit();
             
