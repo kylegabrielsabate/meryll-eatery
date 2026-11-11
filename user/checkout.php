@@ -3,13 +3,11 @@ session_start();
 include '../connect.php';
 include '../mail_config.php';
 
-// AUTH GATE
 if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit(); }
 
 $user_id  = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 
-// Get user's email
 $stmt = $con->prepare("SELECT email FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
@@ -17,7 +15,6 @@ $user_email = $stmt->get_result()->fetch_assoc()['email'];
 
 if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
 
-// Build order summary from cart
 $items = [];
 $total = 0;
 foreach ($_SESSION['cart'] as $key => $item) {
@@ -34,7 +31,6 @@ $error = '';
 $order_success = null;
 $success_details = [];
 
-// ============ PROCESS CHECKOUT ============
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
     $fulfillment = $_POST['fulfillment'] ?? '';
     $pickup_time = trim($_POST['pickup_time'] ?? '');
@@ -46,7 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
     } elseif (empty($pickup_time)) {
         $error = 'Please specify your preferred time.';
     } else {
-        // Handle GCash proof upload
         $gcash_proof = null;
         if ($payment === 'GCash') {
             if (!isset($_FILES['gcash_proof']) || $_FILES['gcash_proof']['error'] !== 0) {
@@ -78,17 +73,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
         if (empty($error)) {
             $con->begin_transaction();
             try {
-                // Generate unique Order Number
                 $order_number = 'KB-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
                 $status = 'Pending';
 
-                // Insert order with gcash_proof
                 $stmt = $con->prepare("INSERT INTO orders (user_id, order_number, order_type, pickup_time, payment_method, total_amount, status, special_instructions, gcash_proof) VALUES (?,?,?,?,?,?,?,?,?)");
                 $stmt->bind_param("issssdsss", $user_id, $order_number, $fulfillment, $pickup_time, $payment, $total, $status, $notes, $gcash_proof);
                 $stmt->execute();
                 $order_id = $con->insert_id;
 
-                // Insert order items
                 $stmt2 = $con->prepare("INSERT INTO order_items (order_id, item_name, quantity, price) VALUES (?,?,?,?)");
                 foreach ($items as $it) {
                     $stmt2->bind_param("isid", $order_id, $it['name'], $it['qty'], $it['price']);
@@ -97,14 +89,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
 
                 $con->commit();
 
-                // Deduct fried rice stock if applicable
                 foreach ($items as $it) {
                     if (stripos($it['name'], 'Fried Rice') !== false) {
                         if ($_SESSION['fried_rice_stock'] > 0) $_SESSION['fried_rice_stock']--;
                     }
                 }
 
-                // ========== SEND CONFIRMATION EMAIL ==========
                 $email_subject = "Order Confirmation - " . $order_number;
                 
                 $email_html = "
@@ -133,8 +123,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
                         .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #eee; }
                         .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
                         .badge-dine { background: #d4edda; color: #155724; }
-                        .badge-pickup { background: #fff3cd; color: #856404; }
-                        .badge-delivered { background: #cce5ff; color: #004085; }
                     </style>
                 </head>
                 <body>
@@ -146,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
                         <div class='content'>
                             <div class='greeting'>
                                 Hi <b>" . htmlspecialchars($username) . "</b>,<br>
-                                Thank you for your order! Here are your order details:
+                                Thank you for your order!
                             </div>
                             
                             <div class='order-box'>
@@ -158,10 +146,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
                                 <div class='detail-row'>
                                     <span class='detail-label'>Order Type:</span>
                                     <span class='detail-value'>" . htmlspecialchars($fulfillment) . "</span>
-                                </div>
-                                <div class='detail-row'>
-                                    <span class='detail-label'>Preferred Time:</span>
-                                    <span class='detail-value'>" . htmlspecialchars($pickup_time) . "</span>
                                 </div>
                                 <div class='detail-row'>
                                     <span class='detail-label'>Payment Method:</span>
@@ -199,42 +183,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
                                 </tbody>
                             </table>";
                 
-                if (!empty($notes)) {
-                    $email_html .= "
-                            <div style='background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0;'>
-                                <b>📌 Special Instructions:</b><br>
-                                " . htmlspecialchars($notes) . "
-                            </div>";
-                }
-                
                 $email_html .= "
-                            <div style='background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 15px; margin: 20px 0;'>
-                                <b>ℹ️ What's Next?</b><br>
-                                <ul style='margin: 10px 0; padding-left: 20px;'>
-                                    <li>Our kitchen staff will prepare your order</li>
-                                    <li>You'll receive updates on your order status</li>
-                                    <li>Show your <b>Order Number</b> at the counter when picking up</li>
-                                    <li>For dine-in, proceed to the canteen at your preferred time</li>
-                                </ul>
-                            </div>
-                            
-                            <p style='color: #777; font-size: 13px; margin-top: 25px;'>
-                                If you have any questions about your order, please contact us at the canteen.
-                            </p>
                         </div>
                         <div class='footer'>
-                            <p><b>Meryll Eatery</b><br>
-                            Serving delicious meals with care!<br>
-                            This is an automated confirmation email.</p>
+                            <p><b>Meryll Eatery</b></p>
                         </div>
                     </div>
                 </body>
                 </html>";
 
-                // Send the email
                 $email_sent = sendMail($user_email, $email_subject, $email_html);
-
-                // Clear cart
                 $_SESSION['cart'] = [];
                 
                 $order_success = $order_number;
@@ -255,7 +213,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($items)) {
     }
 }
 
-// Empty cart & not just ordered → back to cart
 if (empty($items) && !$order_success) { header('Location: cart.php'); exit(); }
 ?>
 <!DOCTYPE html>
@@ -314,15 +271,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
 .success-details div{margin-bottom:.4rem}
 .success-details b{color:var(--brand-red)}
 .alert-error{background:#fee;color:#c00;border:1px solid #fcc;padding:12px 15px;border-radius:8px;margin-bottom:1rem;font-size:.9rem}
-.email-status{background:#e7f3ff;border-left:4px solid #007bff;padding:12px 15px;border-radius:8px;margin-bottom:1rem;font-size:.9rem}
-.email-status.success{background:#d4edda;border-left-color:#28a745;color:#155724}
-.email-status.error{background:#f8d7da;border-left-color:#dc3545;color:#721c24}
 .toast{position:fixed;bottom:30px;right:30px;background:var(--brand-red);color:#fff;padding:14px 24px;border-radius:10px;font-weight:600;transform:translateY(100px);opacity:0;transition:all .3s;z-index:9999}
 .toast.show{transform:translateY(0);opacity:1}
 
 /* GCash Styles */
-.gcash-details{display:none;background:#e7f3ff;border:2px solid #007bff;border-radius:12px;padding:1.5rem;margin-top:1rem}
+.gcash-details{display:none;background:#e7f3ff;border:2px solid #007bff;border-radius:12px;padding:1.5rem;margin-top:1rem;animation:slideDown 0.3s ease}
 .gcash-details.show{display:block}
+@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 .gcash-number-box{background:#fff;border-radius:10px;padding:1.2rem;text-align:center;margin-bottom:1rem;border:2px solid #007bff}
 .gcash-number{font-size:2rem;font-weight:800;color:#007bff;letter-spacing:3px}
 .gcash-name{font-size:1rem;color:#6c757d;margin-top:0.3rem;font-weight:600}
@@ -341,31 +296,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
 <body>
 
 <?php if ($order_success): ?>
-<!-- ============ SUCCESS / CONFIRMATION ============ -->
 <div class="success-box">
     <div class="big-icon"><i class="bi bi-check-circle-fill"></i></div>
     <h1>Order Placed Successfully!</h1>
-    <p style="color:var(--text-muted)">A confirmation email with your receipt has been sent to <b><?=htmlspecialchars($user_email)?></b></p>
+    <p style="color:var(--text-muted)">Confirmation email sent to <b><?=htmlspecialchars($user_email)?></b></p>
     <div class="claim-code"><?=htmlspecialchars($order_success)?></div>
     <div class="success-details">
         <div><b>Fulfillment:</b> <?=htmlspecialchars($success_details['fulfillment'])?></div>
-        <div><b>Preferred Time:</b> <?=htmlspecialchars($success_details['time'])?></div>
         <div><b>Payment:</b> <?=htmlspecialchars($success_details['payment'])?></div>
-        <?php if (!empty($success_details['notes'])): ?>
-        <div><b>Notes:</b> <?=htmlspecialchars($success_details['notes'])?></div>
-        <?php endif; ?>
         <div><b>Total:</b> ₱<?=number_format($success_details['total'],2)?></div>
-        <?php if (!$success_details['email_sent']): ?>
-        <div style="margin-top:10px;padding:10px;background:#fff3cd;border-radius:6px;font-size:.85rem;color:#856404">
-            <i class="bi bi-exclamation-triangle"></i> Note: We couldn't send the confirmation email, but your order was saved successfully!
-        </div>
-        <?php endif; ?>
     </div>
     <a href="index.php" class="place-order-btn" style="display:block;text-decoration:none;text-align:center">Back to Menu</a>
 </div>
 
 <?php else: ?>
-<!-- ============ CHECKOUT FORM ============ -->
 <div class="checkout-wrap">
     <div class="checkout-header">
         <h1><i class="bi bi-bag-check"></i> Checkout</h1>
@@ -376,51 +320,44 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
 
     <form method="POST" action="" id="checkoutForm" enctype="multipart/form-data">
         <div class="grid">
-            <!-- LEFT: Options -->
             <div>
-                <!-- Fulfillment -->
                 <div class="card">
                     <h2><i class="bi bi-signpost-split"></i> How do you want your order?</h2>
                     <div class="fulfill-grid">
                         <div class="fulfill-option" data-value="Dine-in" onclick="selectFulfillment(this)">
                             <i class="bi bi-shop"></i>
                             <div class="f-name">Dine-in</div>
-                            <div class="f-desc">Skip the line, eat at canteen</div>
+                            <div class="f-desc">Eat at canteen</div>
                         </div>
                         <div class="fulfill-option" data-value="Delivered" onclick="selectFulfillment(this)">
                             <i class="bi bi-bag-check"></i>
-                            <div class="f-name">Delivered to You</div>
-                            <div class="f-desc">Take-out / brought to you</div>
+                            <div class="f-name">Delivered</div>
+                            <div class="f-desc">Take-out</div>
                         </div>
                         <div class="fulfill-option" data-value="Pick-up" onclick="selectFulfillment(this)">
                             <i class="bi bi-geo-alt"></i>
                             <div class="f-name">Pick-up</div>
-                            <div class="f-desc">Claim at the counter</div>
+                            <div class="f-desc">Claim at counter</div>
                         </div>
                     </div>
                     <input type="hidden" name="fulfillment" id="fulfillmentInput" value="">
                 </div>
 
-                <!-- Time -->
                 <div class="card">
                     <h2><i class="bi bi-clock"></i> Preferred Time</h2>
                     <div class="form-group">
                         <label>When do you want it ready? *</label>
                         <input type="time" name="pickup_time" required>
-                        <div class="note-hint">Example: 12:00 for lunch break</div>
                     </div>
                 </div>
 
-                <!-- Notes / Comments -->
                 <div class="card">
-                    <h2><i class="bi bi-chat-left-text"></i> Notes / Comments <span style="font-weight:400;color:var(--text-muted)">(optional)</span></h2>
+                    <h2><i class="bi bi-chat-left-text"></i> Notes (optional)</h2>
                     <div class="form-group">
-                        <textarea name="notes" placeholder="Add any special instructions... e.g. 'No mayonnaise', 'Extra sauce', 'Less spicy', 'Add extra rice'"></textarea>
-                        <div class="note-hint">The canteen staff will see these notes when preparing your order.</div>
+                        <textarea name="notes" placeholder="Special instructions..."></textarea>
                     </div>
                 </div>
 
-                <!-- Payment -->
                 <div class="card">
                     <h2><i class="bi bi-credit-card"></i> Payment Method</h2>
                     <div class="pay-grid">
@@ -433,7 +370,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
                     </div>
                     <input type="hidden" name="payment" id="paymentInput" value="Cash">
                     
-                    <!-- GCash Details -->
                     <div class="gcash-details" id="gcashDetails">
                         <div class="gcash-number-box">
                             <div class="gcash-number">0966 953 1004</div>
@@ -443,11 +379,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
                         <div class="gcash-instructions">
                             <strong><i class="bi bi-info-circle"></i> How to pay:</strong>
                             <ol>
-                                <li>Open your GCash app</li>
+                                <li>Open GCash app</li>
                                 <li>Send money to <strong>0966 953 1004</strong></li>
-                                <li>Enter amount: <strong>₱<?= number_format($total, 2) ?></strong></li>
-                                <li>Take a screenshot of the transaction</li>
-                                <li>Upload the screenshot below</li>
+                                <li>Amount: <strong>₱<?= number_format($total, 2) ?></strong></li>
+                                <li>Take screenshot of transaction</li>
+                                <li>Upload screenshot below</li>
                             </ol>
                         </div>
                         
@@ -460,7 +396,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
                 </div>
             </div>
 
-            <!-- RIGHT: Summary -->
             <div>
                 <div class="card">
                     <h2><i class="bi bi-receipt"></i> Order Summary</h2>
@@ -478,9 +413,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);min-height:100vh;
                     <button type="submit" class="place-order-btn">
                         <i class="bi bi-bag-check"></i> Place Order
                     </button>
-                    <p style="margin-top:10px;font-size:.85rem;color:var(--text-muted);text-align:center">
-                        <i class="bi bi-envelope"></i> Confirmation email will be sent to: <b><?=htmlspecialchars($user_email)?></b>
-                    </p>
                 </div>
             </div>
         </div>
@@ -498,18 +430,32 @@ function selectFulfillment(el){
     el.classList.add('selected');
     document.getElementById('fulfillmentInput').value = el.dataset.value;
 }
+
 function selectPayment(el){
+    // Remove selected from all
     document.querySelectorAll('.pay-option').forEach(e=>e.classList.remove('selected'));
-    el.classList.add('selected');
-    document.getElementById('paymentInput').value = el.dataset.value;
     
+    // Add selected to clicked
+    el.classList.add('selected');
+    
+    // Update hidden input
+    const paymentValue = el.dataset.value;
+    document.getElementById('paymentInput').value = paymentValue;
+    
+    // Show/hide GCash details
     const gcashDetails = document.getElementById('gcashDetails');
     const proofInput = document.getElementById('gcash_proof');
     
-    if (el.dataset.value === 'GCash') {
+    if (paymentValue === 'GCash') {
+        gcashDetails.style.display = 'block';
         gcashDetails.classList.add('show');
         proofInput.required = true;
+        // Scroll to GCash section
+        setTimeout(() => {
+            gcashDetails.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
     } else {
+        gcashDetails.style.display = 'none';
         gcashDetails.classList.remove('show');
         proofInput.required = false;
         proofInput.value = '';
@@ -532,7 +478,7 @@ document.getElementById('checkoutForm')?.addEventListener('submit', function(e){
     const f = document.getElementById('fulfillmentInput').value;
     if (!f) {
         e.preventDefault();
-        showToast('⚠️ Please choose Dine-in, Delivered, or Pick-up!');
+        showToast('⚠️ Please choose fulfillment method!');
         return;
     }
     
@@ -541,7 +487,7 @@ document.getElementById('checkoutForm')?.addEventListener('submit', function(e){
         const proofInput = document.getElementById('gcash_proof');
         if (!proofInput.files || proofInput.files.length === 0) {
             e.preventDefault();
-            showToast('⚠️ Please upload your GCash proof of payment!');
+            showToast('⚠️ Please upload GCash proof!');
             return;
         }
     }
