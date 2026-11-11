@@ -105,10 +105,10 @@ textarea.form-control{resize:vertical;min-height:80px}
                 <input type="time" id="pickup_time" name="pickup_time" class="form-control" required>
             </div>
             
-            <!-- ✅ PHONE NUMBER FIELD (required for Pick-up/Delivery only) -->
-            <div class="form-group">
+            <!-- ✅ PHONE NUMBER FIELD (Hidden for Dine-in, Required for Pick-up/Delivery) -->
+            <div class="form-group" id="phoneGroup">
                 <label for="customer_phone">📱 Contact Number <span id="phoneRequired" class="text-danger">*</span></label>
-                <input type="tel" id="customer_phone" name="customer_phone" class="form-control" placeholder="09XX XXX XXXX" required>
+                <input type="tel" id="customer_phone" name="customer_phone" class="form-control" placeholder="09XX XXX XXXX">
                 <small class="text-muted" style="font-size:0.8rem">We'll use this to contact you about your order</small>
             </div>
             
@@ -172,24 +172,31 @@ textarea.form-control{resize:vertical;min-height:80px}
 <script>
 let redirectUrl = '';
 
-document.addEventListener('DOMContentLoaded', loadCartSummary);
+document.addEventListener('DOMContentLoaded', () => {
+    loadCartSummary();
+    updateTimeLabel(); // Initialize phone field state on load
+});
 
 function updateTimeLabel() {
     const type = document.querySelector('input[name="order_type"]:checked').value;
     const label = document.getElementById('timeLabel');
+    const phoneGroup = document.getElementById('phoneGroup');
     const phoneInput = document.getElementById('customer_phone');
     const phoneRequired = document.getElementById('phoneRequired');
     
     if (type === 'Dine-in') {
         label.textContent = 'What time will you eat?';
+        phoneGroup.style.display = 'none'; // ✅ Completely hide
         phoneInput.required = false;
-        phoneRequired.style.display = 'none';
+        phoneInput.value = ''; // Clear value
     } else if (type === 'Pick-up') {
         label.textContent = 'What time will you pick it up?';
+        phoneGroup.style.display = 'block'; // ✅ Show
         phoneInput.required = true;
         phoneRequired.style.display = 'inline';
     } else {
         label.textContent = 'What time should we deliver?';
+        phoneGroup.style.display = 'block'; // ✅ Show
         phoneInput.required = true;
         phoneRequired.style.display = 'inline';
     }
@@ -247,7 +254,6 @@ function loadCartSummary() {
         let now = new Date();
         now.setMinutes(now.getMinutes() + 30);
         document.getElementById('pickup_time').value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-        updateTimeLabel();
     });
 }
 
@@ -284,10 +290,10 @@ function placeOrder() {
     const phone = document.getElementById('customer_phone').value.trim();
     const orderType = document.querySelector('input[name="order_type"]:checked').value;
     
-    if (!time) { showNotif('error', 'Missing Info', 'Please select a pickup time!'); return; }
+    if (!time) { showNotif('error', 'Missing Info', 'Please select a time!'); return; }
     
-    // ✅ Validate phone for Pick-up/Delivery ONLY (not Dine-in)
-    if ((orderType === 'Pick-up' || orderType === 'Delivered') && !phone) {
+    // ✅ Only validate phone if NOT Dine-in
+    if (orderType !== 'Dine-in' && !phone) {
         showNotif('error', 'Phone Required', 'Please provide your contact number so we can reach you!');
         return;
     }
@@ -309,7 +315,7 @@ function placeOrder() {
     fd.append('order_type', orderType);
     fd.append('payment_method', payment);
     fd.append('pickup_time', time);
-    fd.append('customer_phone', phone);
+    fd.append('customer_phone', orderType === 'Dine-in' ? '' : phone); // ✅ Send empty for Dine-in
     fd.append('order_note', document.getElementById('order_note').value);
     if (payment === 'GCash') fd.append('gcash_proof', proofInput.files[0]);
 
