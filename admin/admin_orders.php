@@ -8,7 +8,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     $stmt->bind_param("si", $_POST['new_status'], $_POST['order_id']);
     if ($stmt->execute()) $msg = "Status updated!";
 }
-$orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.user_id = u.user_id ORDER BY o.created_at DESC");
+
+// ✅ Now fetches username AND student_id (ID number)
+$orders = $con->query("SELECT o.*, u.username, u.student_id FROM orders o JOIN users u ON o.user_id = u.user_id ORDER BY o.created_at DESC");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -50,13 +52,30 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
-                            <tr><th>Order #</th><th>Customer</th><th>Type</th><th>Time</th><th>Total</th><th>Status</th><th>Actions</th></tr>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Customer</th>
+                                <th>ID Number</th>
+                                <th>Type</th>
+                                <th>Time</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
                         </thead>
                         <tbody>
                             <?php while($r = $orders->fetch_assoc()): ?>
                             <tr>
                                 <td class="fw-bold">#<?= htmlspecialchars($r['order_number']) ?></td>
-                                <td><?= htmlspecialchars($r['username']) ?></td>
+                                <td>
+                                    <div class="fw-semibold"><?= htmlspecialchars($r['username']) ?></div>
+                                    <small class="text-muted"><?= htmlspecialchars($r['email'] ?? '') ?></small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        <?= htmlspecialchars($r['student_id'] ?: '—') ?>
+                                    </span>
+                                </td>
                                 <td><?= htmlspecialchars($r['order_type']) ?></td>
                                 <td><?= htmlspecialchars($r['pickup_time']) ?></td>
                                 <td class="fw-bold">₱<?= number_format($r['total_amount'], 2) ?></td>
@@ -66,7 +85,7 @@ $orders = $con->query("SELECT o.*, u.username FROM orders o JOIN users u ON o.us
                                         <i class="fas fa-eye"></i> View
                                     </a>
                                     <?php if ($r['payment_method'] === 'GCash' && !empty($r['gcash_proof'])): ?>
-                                        <a href="../uploads/proofs/<?= htmlspecialchars($r['gcash_proof']) ?>" target="_blank" class="btn btn-sm btn-info" title="View GCash Receipt">
+                                        <a href="../user/gcash_proof.php?order_id=<?= $r['order_id'] ?>" target="_blank" class="btn btn-sm btn-info" title="View GCash Receipt">
                                             <i class="fas fa-receipt"></i> Receipt
                                         </a>
                                     <?php endif; ?>
