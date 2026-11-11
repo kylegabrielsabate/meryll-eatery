@@ -13,24 +13,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
 $sort = $_GET['sort'] ?? 'all';
 $search = $_GET['search'] ?? '';
 
-// ✅ FIX 1: ROBUST QUERY LOGIC
-// We use the same logic for counting as we do for the table to ensure they match
-$sql_base = "SELECT * FROM users WHERE role != 'admin'";
-$count_student_sql = "SELECT COUNT(*) as c FROM users WHERE role != 'admin' AND (student_id LIKE 'E%' OR student_id REGEXP '^[A-Z][0-9]{2}-[0-9]+$')";
-$count_instructor_sql = "SELECT COUNT(*) as c FROM users WHERE role != 'admin' AND (student_id LIKE 'TAG-%' OR role = 'instructor')";
-
-// Apply search to counts if needed (optional, but keeps it consistent)
-// For now, let's keep counts global so admin sees total registered users
-
-$total_students = $con->query($count_student_sql)->fetch_assoc()['c'] ?? 0;
-$total_instructors = $con->query($count_instructor_sql)->fetch_assoc()['c'] ?? 0;
+// ✅ ROBUST QUERY LOGIC - matches counts with table filters
+$total_students = $con->query("SELECT COUNT(*) c FROM users WHERE role NOT IN ('admin','instructor') AND student_id NOT LIKE 'TAG-%'")->fetch_assoc()['c'];
+$total_instructors = $con->query("SELECT COUNT(*) c FROM users WHERE role = 'instructor' OR student_id LIKE 'TAG-%'")->fetch_assoc()['c'];
 
 // Build main query
-$sql = $sql_base;
+$sql = "SELECT * FROM users WHERE role != 'admin'";
 if ($sort === 'student') {
-    $sql .= " AND (student_id LIKE 'E%' OR student_id REGEXP '^[A-Z][0-9]{2}-[0-9]+$')";
+    $sql .= " AND role NOT IN ('admin','instructor') AND student_id NOT LIKE 'TAG-%'";
 } elseif ($sort === 'instructor') {
-    $sql .= " AND (student_id LIKE 'TAG-%' OR role = 'instructor')";
+    $sql .= " AND (role = 'instructor' OR student_id LIKE 'TAG-%')";
 }
 
 if ($search) {
@@ -122,9 +114,10 @@ $users = $con->query($sql);
                         </thead>
                         <tbody>
                             <?php while($u = $users->fetch_assoc()): 
-                                // ✅ FIX 2: DYNAMIC TYPE DETECTION
-                                // Check ID format first, then fallback to role
-                                $isStudent = (preg_match('/^[A-Z]\d{2}-\d+$/', $u['student_id']) || strpos($u['student_id'], 'E') === 0);
+                                // ✅ FIXED: Role-first detection, fallback to ID format
+                                // Instructor = role is 'instructor' OR ID starts with TAG-
+                                // Student = everything else
+                                $isStudent = !($u['role'] === 'instructor' || stripos($u['student_id'] ?? '', 'TAG-') === 0);
                                 $typeLabel = $isStudent ? 'Student' : 'Instructor';
                                 $badgeClass = $isStudent ? 'user-type-student' : 'user-type-instructor';
                             ?>

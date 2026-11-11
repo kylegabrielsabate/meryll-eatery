@@ -13,8 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $student_id = strtoupper(trim($_POST['student_id'] ?? ''));
     $user_type = $_POST['user_type'] ?? 'student';
     
-    // ✅ STRICT PASSWORD POLICY CHECKS
-    if (strlen($password) < 8) {
+    // ✅ STRICT PASSWORD POLICY
+    if (empty($username) || empty($email) || empty($student_id) || empty($password) || empty($confirm_password)) {
+        $error = 'All fields are required.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'Invalid email format.';
+    } elseif (strlen($password) < 8) {
         $error = 'Password must be at least 8 characters long.';
     } elseif (!preg_match('/[A-Z]/', $password)) {
         $error = 'Password must contain at least one uppercase letter.';
@@ -26,41 +30,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Password must contain at least one special character (!@#$%^&*).';
     } elseif ($password !== $confirm_password) {
         $error = 'Passwords do not match.';
-    } elseif (empty($username) || empty($email) || empty($student_id)) {
-        $error = 'All fields are required.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Invalid email format.';
     } else {
-        // ✅ DUPLICATE CHECK (Email AND ID)
-        $stmt = $con->prepare("SELECT user_id FROM users WHERE email = ? OR student_id = ?");
-        $stmt->bind_param("ss", $email, $student_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows > 0) {
-            $check_email = $con->prepare("SELECT user_id FROM users WHERE email = ?");
-            $check_email->bind_param("s", $email);
-            $check_email->execute();
-            
-            if ($check_email->get_result()->num_rows > 0) {
-                $error = 'This email is already registered.';
-            } else {
-                $error = 'This ID number (' . htmlspecialchars($student_id) . ') is already registered.';
-            }
+        // ✅ ID FORMAT VALIDATION
+        $valid_id = false;
+        if ($user_type === 'instructor') {
+            if (preg_match('/^TAG-\d{2,4}$/i', $student_id)) $valid_id = true;
+            else $error = 'Instructor ID must be in format: TAG-123';
         } else {
-            // ✅ VALIDATE ID FORMAT
-            $valid_id = false;
-            if ($user_type === 'instructor') {
-                if (preg_match('/^TAG-\d{2,4}$/i', $student_id)) $valid_id = true;
-                else $error = 'Instructor ID must be in format: TAG-123';
+            if (preg_match('/^[A-Z]\d{2}-\d{3,}$/i', $student_id)) $valid_id = true;
+            else $error = 'Student ID must be in format: E24-00123';
+        }
+        
+        if ($valid_id) {
+            // ✅ DUPLICATE CHECK (email AND id)
+            $stmt = $con->prepare("SELECT user_id FROM users WHERE email = ? OR student_id = ?");
+            $stmt->bind_param("ss", $email, $student_id);
+            $stmt->execute();
+            if ($stmt->get_result()->num_rows > 0) {
+                $check = $con->prepare("SELECT user_id FROM users WHERE email = ?");
+                $check->bind_param("s", $email);
+                $check->execute();
+                $error = ($check->get_result()->num_rows > 0) 
+                    ? 'This email is already registered.' 
+                    : 'This ID number (' . htmlspecialchars($student_id) . ') is already registered.';
             } else {
-                if (preg_match('/^[A-Z]\d{2}-\d{3,}$/i', $student_id)) $valid_id = true;
-                else $error = 'Student ID must be in format: E24-00123';
-            }
-            
-            if (!$error && $valid_id) {
                 $hashed_password = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
-                $role = 'user';
+                // ✅ ROLE NOW SAVED PROPERLY (works after the VARCHAR fix)
+                $role = ($user_type === 'instructor') ? 'instructor' : 'user';
                 
                 $stmt = $con->prepare("INSERT INTO users (username, email, password, student_id, role, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
                 $stmt->bind_param("sssss", $username, $email, $hashed_password, $student_id, $role);
@@ -115,62 +111,28 @@ body {
     width: 100%; padding: 12px 45px 12px 15px; border: 1px solid #dee2e6; border-radius: 10px;
     font-size: 1rem; font-family: inherit; outline: none; transition: border-color 0.2s;
 }
-.form-group input:focus, .form-group select:focus { 
-    border-color: #8B0000; box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1); 
-}
+.form-group select { padding: 12px 15px; }
+.form-group input:focus, .form-group select:focus { border-color: #8B0000; box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1); }
 
-/* ✅ EYE TOGGLE BUTTON */
 .toggle-password {
-    position: absolute;
-    right: 15px;
-    top: 38px;
-    background: none;
-    border: none;
-    color: #6c757d;
-    cursor: pointer;
-    font-size: 1.2rem;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    z-index: 10;
+    position: absolute; right: 15px; top: 38px; background: none; border: none;
+    color: #6c757d; cursor: pointer; font-size: 1.2rem; padding: 0; display: flex; align-items: center; z-index: 10;
 }
 .toggle-password:hover { color: #8B0000; }
 
-/* ✅ PASSWORD STRENGTH METER */
-.password-strength {
-    height: 4px;
-    background: #e9ecef;
-    border-radius: 2px;
-    margin-top: 8px;
-    overflow: hidden;
-}
-.password-strength-bar {
-    height: 100%;
-    width: 0%;
-    transition: all 0.3s ease;
-    border-radius: 2px;
-}
+.password-strength { height: 4px; background: #e9ecef; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.password-strength-bar { height: 100%; width: 0%; transition: all 0.3s ease; border-radius: 2px; }
 .strength-weak { width: 25%; background: #ef4444; }
 .strength-fair { width: 50%; background: #f59e0b; }
 .strength-good { width: 75%; background: #3b82f6; }
 .strength-strong { width: 100%; background: #10b981; }
 
-.password-rules {
-    font-size: 0.75rem;
-    color: #6c757d;
-    margin-top: 8px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-}
+.password-rules { font-size: 0.75rem; color: #6c757d; margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .rule-item { display: flex; align-items: center; gap: 4px; }
 .rule-item.met { color: #10b981; }
 .rule-item.unmet { color: #ef4444; }
 
-.id-format-info {
-    background: #fff3cd; border: 1px solid #ffc107; color: #856404;
-    padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-top: 8px; display: none;
-}
+.id-format-info { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-top: 8px; display: none; }
 .id-format-info.show { display: block; }
 
 .btn-signup {
@@ -230,16 +192,11 @@ body {
             </div>
         </div>
         
-        <!-- ✅ PASSWORD WITH EYE TOGGLE -->
         <div class="form-group">
             <label><i class="bi bi-lock"></i> Password</label>
             <input type="password" name="password" id="password" required placeholder="Min. 8 chars, upper, lower, number, symbol" oninput="checkPasswordStrength()">
-            <button type="button" class="toggle-password" onclick="toggleVisibility('password', this)">
-                <i class="bi bi-eye"></i>
-            </button>
-            <div class="password-strength">
-                <div class="password-strength-bar" id="strengthBar"></div>
-            </div>
+            <button type="button" class="toggle-password" onclick="toggleVisibility('password', this)"><i class="bi bi-eye"></i></button>
+            <div class="password-strength"><div class="password-strength-bar" id="strengthBar"></div></div>
             <div class="password-rules">
                 <div class="rule-item unmet" id="rule-length"><i class="bi bi-circle"></i> 8+ characters</div>
                 <div class="rule-item unmet" id="rule-upper"><i class="bi bi-circle"></i> Uppercase (A-Z)</div>
@@ -250,13 +207,10 @@ body {
             </div>
         </div>
         
-        <!-- ✅ CONFIRM PASSWORD WITH EYE TOGGLE -->
         <div class="form-group">
             <label><i class="bi bi-lock-fill"></i> Confirm Password</label>
             <input type="password" name="confirm_password" id="confirmPassword" required placeholder="Re-enter password" oninput="checkPasswordStrength()">
-            <button type="button" class="toggle-password" onclick="toggleVisibility('confirmPassword', this)">
-                <i class="bi bi-eye"></i>
-            </button>
+            <button type="button" class="toggle-password" onclick="toggleVisibility('confirmPassword', this)"><i class="bi bi-eye"></i></button>
         </div>
 
         <button type="submit" class="btn-signup" id="submitBtn" disabled><i class="bi bi-person-plus"></i> Create Account</button>
@@ -273,9 +227,7 @@ function updateIDFormat() {
     const formatInfo = document.getElementById('idFormatInfo');
     const formatExample = document.getElementById('formatExample');
     const studentIdInput = document.getElementById('studentId');
-    
     formatInfo.classList.add('show');
-    
     if (userType === 'instructor') {
         formatExample.textContent = 'TAG-123';
         studentIdInput.placeholder = 'TAG-123';
@@ -285,14 +237,12 @@ function updateIDFormat() {
     }
 }
 
-// ✅ REAL-TIME PASSWORD STRENGTH CHECKER
 function checkPasswordStrength() {
     const password = document.getElementById('password').value;
     const confirm = document.getElementById('confirmPassword').value;
     const bar = document.getElementById('strengthBar');
     const submitBtn = document.getElementById('submitBtn');
     
-    // Check individual rules
     const hasLength = password.length >= 8;
     const hasUpper = /[A-Z]/.test(password);
     const hasLower = /[a-z]/.test(password);
@@ -300,7 +250,6 @@ function checkPasswordStrength() {
     const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
     const matches = password === confirm && password.length > 0;
     
-    // Update rule indicators
     updateRule('rule-length', hasLength);
     updateRule('rule-upper', hasUpper);
     updateRule('rule-lower', hasLower);
@@ -308,7 +257,6 @@ function checkPasswordStrength() {
     updateRule('rule-special', hasSpecial);
     updateRule('rule-match', matches);
     
-    // Calculate strength
     let score = 0;
     if (hasLength) score++;
     if (hasUpper) score++;
@@ -317,14 +265,12 @@ function checkPasswordStrength() {
     if (hasSpecial) score++;
     if (matches) score++;
     
-    // Update bar
     bar.className = 'password-strength-bar';
     if (score <= 2) bar.classList.add('strength-weak');
     else if (score <= 4) bar.classList.add('strength-fair');
     else if (score === 5) bar.classList.add('strength-good');
     else if (score === 6) bar.classList.add('strength-strong');
     
-    // Enable/disable submit button
     submitBtn.disabled = !(hasLength && hasUpper && hasLower && hasNumber && hasSpecial && matches);
 }
 
@@ -332,36 +278,27 @@ function updateRule(id, met) {
     const el = document.getElementById(id);
     const icon = el.querySelector('i');
     if (met) {
-        el.classList.remove('unmet');
-        el.classList.add('met');
+        el.classList.remove('unmet'); el.classList.add('met');
         icon.className = 'bi bi-check-circle-fill';
     } else {
-        el.classList.remove('met');
-        el.classList.add('unmet');
+        el.classList.remove('met'); el.classList.add('unmet');
         icon.className = 'bi bi-circle';
     }
 }
 
-// ✅ TOGGLE PASSWORD VISIBILITY
 function toggleVisibility(inputId, btn) {
     const input = document.getElementById(inputId);
     const icon = btn.querySelector('i');
-    
     if (input.type === 'password') {
         input.type = 'text';
-        icon.classList.remove('bi-eye');
-        icon.classList.add('bi-eye-slash');
+        icon.classList.remove('bi-eye'); icon.classList.add('bi-eye-slash');
     } else {
         input.type = 'password';
-        icon.classList.remove('bi-eye-slash');
-        icon.classList.add('bi-eye');
+        icon.classList.remove('bi-eye-slash'); icon.classList.add('bi-eye');
     }
 }
 
-// Show format info on page load if there's a value
-if (document.getElementById('studentId').value) {
-    updateIDFormat();
-}
+if (document.getElementById('studentId').value) updateIDFormat();
 </script>
 
 </body>
