@@ -50,7 +50,23 @@ textarea.form-control{resize:vertical;min-height:80px}
 .btn-checkout{width:100%;padding:14px;background:var(--brand-red);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1.1rem;cursor:pointer;margin-top:1.5rem}
 .btn-checkout:disabled{background:#ccc;cursor:not-allowed}
 
-/* ✅ BEAUTIFUL NOTIFICATION MODAL */
+/* ✅ GCASH SECTION */
+.gcash-details{display:none;background:#e7f3ff;border:2px solid #007bff;border-radius:12px;padding:1.5rem;margin-top:1rem;animation:slideDown .3s ease}
+.gcash-details.show{display:block}
+@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+.gcash-number-box{background:#fff;border-radius:10px;padding:1.2rem;text-align:center;margin-bottom:1rem;border:2px solid #007bff}
+.gcash-number{font-size:1.8rem;font-weight:800;color:#007bff;letter-spacing:2px}
+.gcash-name{font-size:1rem;color:#6c757d;margin-top:.3rem;font-weight:600}
+.gcash-instructions{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:.88rem;color:#856404}
+.gcash-instructions strong{display:block;margin-bottom:.5rem;font-size:.95rem}
+.gcash-instructions ol{margin-left:1.2rem;margin-top:.5rem}
+.gcash-instructions li{margin-bottom:.3rem}
+.proof-upload label{display:block;font-weight:600;font-size:.9rem;margin-bottom:.5rem;color:var(--text-dark)}
+.proof-upload input[type="file"]{width:100%;padding:.75rem;border:2px dashed #007bff;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit}
+.proof-preview{margin-top:1rem;text-align:center}
+.proof-preview img{max-width:100%;max-height:220px;border-radius:8px;border:2px solid #e9ecef}
+
+/* NOTIFICATION MODAL */
 .notif-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9998;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
 .notif-overlay.show{display:flex}
 .notif-modal{background:#fff;border-radius:20px;padding:2.5rem;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:popIn 0.4s ease}
@@ -91,11 +107,35 @@ textarea.form-control{resize:vertical;min-height:80px}
             <div class="form-group">
                 <label>Payment Method</label>
                 <div class="order-types" style="grid-template-columns:repeat(2, 1fr)">
-                    <div class="type-option"><input type="radio" name="payment_method" id="pay_cash" value="Cash" checked><label for="pay_cash" class="type-label"><i class="bi bi-cash"></i><span class="type-title">Cash</span></label></div>
-                    <div class="type-option"><input type="radio" name="payment_method" id="pay_cashless" value="Cashless"><label for="pay_cashless" class="type-label"><i class="bi bi-credit-card"></i><span class="type-title">Cashless (GCash)</span></label></div>
+                    <div class="type-option"><input type="radio" name="payment_method" id="pay_cash" value="Cash" checked onchange="toggleGcash()"><label for="pay_cash" class="type-label"><i class="bi bi-cash"></i><span class="type-title">Cash</span></label></div>
+                    <div class="type-option"><input type="radio" name="payment_method" id="pay_gcash" value="GCash" onchange="toggleGcash()"><label for="pay_gcash" class="type-label"><i class="bi bi-phone"></i><span class="type-title">GCash</span></label></div>
                 </div>
             </div>
-            <div class="form-group">
+
+            <!-- ✅ GCASH STORE NUMBER + PROOF UPLOAD -->
+            <div class="gcash-details" id="gcashDetails">
+                <div class="gcash-number-box">
+                    <div class="gcash-number">0966 953 1004</div>
+                    <div class="gcash-name">Meryll</div>
+                </div>
+                <div class="gcash-instructions">
+                    <strong><i class="bi bi-info-circle"></i> How to pay:</strong>
+                    <ol>
+                        <li>Open your GCash app</li>
+                        <li>Send money to <strong>0966 953 1004</strong></li>
+                        <li>Enter the exact total amount shown on the right</li>
+                        <li>Take a screenshot of the successful transaction</li>
+                        <li>Upload the screenshot below</li>
+                    </ol>
+                </div>
+                <div class="proof-upload">
+                    <label for="gcash_proof"><i class="bi bi-cloud-upload"></i> Upload Proof of Payment *</label>
+                    <input type="file" id="gcash_proof" name="gcash_proof" accept="image/*" onchange="previewProof(this)">
+                    <div class="proof-preview" id="proofPreview"></div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top:1.2rem">
                 <label for="order_note">Order Notes (Optional)</label>
                 <textarea id="order_note" name="order_note" class="form-control" placeholder="e.g. No onions, extra spicy..."></textarea>
             </div>
@@ -110,7 +150,7 @@ textarea.form-control{resize:vertical;min-height:80px}
     </div>
 </div>
 
-<!-- ✅ BEAUTIFUL NOTIFICATION MODAL -->
+<!-- NOTIFICATION MODAL -->
 <div class="notif-overlay" id="notifOverlay">
     <div class="notif-modal" id="notifModal">
         <div class="notif-icon" id="notifIcon"><i class="bi bi-check-circle-fill"></i></div>
@@ -132,6 +172,29 @@ function updateTimeLabel() {
     if (type === 'Dine-in') label.textContent = 'What time will you eat?';
     else if (type === 'Pick-up') label.textContent = 'What time will you pick it up?';
     else label.textContent = 'What time should we deliver?';
+}
+
+// ✅ SHOW/HIDE GCASH SECTION
+function toggleGcash() {
+    const payment = document.querySelector('input[name="payment_method"]:checked').value;
+    const box = document.getElementById('gcashDetails');
+    if (payment === 'GCash') {
+        box.classList.add('show');
+        setTimeout(() => box.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    } else {
+        box.classList.remove('show');
+        document.getElementById('gcash_proof').value = '';
+        document.getElementById('proofPreview').innerHTML = '';
+    }
+}
+
+function previewProof(input) {
+    const preview = document.getElementById('proofPreview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => { preview.innerHTML = '<img src="' + e.target.result + '" alt="Proof">'; };
+        reader.readAsDataURL(input.files[0]);
+    }
 }
 
 function loadCartSummary() {
@@ -163,9 +226,7 @@ function loadCartSummary() {
         
         let now = new Date();
         now.setMinutes(now.getMinutes() + 30);
-        let hours = String(now.getHours()).padStart(2, '0');
-        let minutes = String(now.getMinutes()).padStart(2, '0');
-        document.getElementById('pickup_time').value = `${hours}:${minutes}`;
+        document.getElementById('pickup_time').value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
         updateTimeLabel();
     });
 }
@@ -173,7 +234,6 @@ function loadCartSummary() {
 function updateQty(key, change) { fetch('cart_actions.php', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'action=update&cart_key='+key+'&change='+change}).then(()=>loadCartSummary()); }
 function removeItem(key) { fetch('cart_actions.php', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'action=remove&cart_key='+key}).then(()=>loadCartSummary()); }
 
-// ✅ BEAUTIFUL NOTIFICATION FUNCTION
 function showNotif(type, title, msg, orderNum, redirect) {
     const overlay = document.getElementById('notifOverlay');
     const modal = document.getElementById('notifModal');
@@ -186,52 +246,48 @@ function showNotif(type, title, msg, orderNum, redirect) {
     document.getElementById('notifTitle').textContent = title;
     document.getElementById('notifMsg').textContent = msg;
     
-    if (orderNum) {
-        orderNumEl.style.display = 'inline-block';
-        orderNumEl.textContent = 'Order #' + orderNum;
-    } else {
-        orderNumEl.style.display = 'none';
-    }
+    if (orderNum) { orderNumEl.style.display = 'inline-block'; orderNumEl.textContent = 'Order #' + orderNum; }
+    else { orderNumEl.style.display = 'none'; }
     
-    if (redirect) {
-        redirectUrl = redirect;
-        btn.textContent = 'View Receipt';
-        btn.style.display = 'inline-block';
-    } else {
-        btn.textContent = 'OK';
-        btn.style.display = 'inline-block';
-        redirectUrl = '';
-    }
-    
+    redirectUrl = redirect || '';
+    btn.textContent = redirect ? 'View Receipt' : 'OK';
     overlay.classList.add('show');
 }
 
 function handleNotifAction() {
     document.getElementById('notifOverlay').classList.remove('show');
-    if (redirectUrl) {
-        window.location.href = redirectUrl;
-    }
+    if (redirectUrl) window.location.href = redirectUrl;
 }
 
+// ✅ UPDATED: sends proof image via FormData when GCash
 function placeOrder() {
     const time = document.getElementById('pickup_time').value;
     if (!time) { showNotif('error', 'Missing Info', 'Please select a pickup time!'); return; }
     
+    const payment = document.querySelector('input[name="payment_method"]:checked').value;
+    const proofInput = document.getElementById('gcash_proof');
+    
+    if (payment === 'GCash' && (!proofInput.files || proofInput.files.length === 0)) {
+        showNotif('error', 'Proof Required', 'Please upload your GCash proof of payment before placing the order.');
+        return;
+    }
+
     const btn = document.getElementById('btnPlaceOrder');
     btn.innerHTML = 'Processing...'; 
     btn.disabled = true;
 
-    const orderType = document.querySelector('input[name="order_type"]:checked').value;
-    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
-    const orderNote = document.getElementById('order_note').value;
+    const fd = new FormData();
+    fd.append('action', 'checkout');
+    fd.append('order_type', document.querySelector('input[name="order_type"]:checked').value);
+    fd.append('payment_method', payment);
+    fd.append('pickup_time', time);
+    fd.append('order_note', document.getElementById('order_note').value);
+    if (payment === 'GCash') fd.append('gcash_proof', proofInput.files[0]);
 
-    const formData = `action=checkout&order_type=${encodeURIComponent(orderType)}&payment_method=${encodeURIComponent(paymentMethod)}&pickup_time=${encodeURIComponent(time)}&order_note=${encodeURIComponent(orderNote)}`;
-
-    fetch('cart_actions.php', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: formData})
+    fetch('cart_actions.php', { method: 'POST', body: fd })
     .then(r => r.json()).then(data => {
         if (data.success) {
-            // ✅ Show beautiful notification instead of alert
-            showNotif('success', 'Order Placed Successfully!', 'A receipt has been sent to your email. Please keep it for your records.', data.order_number, 'receipt.php?order_id=' + data.order_id);
+            showNotif('success', 'Order Placed Successfully!', 'Please keep your order number for your records.', data.order_number, 'receipt.php?order_id=' + data.order_id);
         } else {
             showNotif('error', 'Order Failed', data.message || 'Something went wrong.');
             btn.innerHTML = 'Place Order'; 

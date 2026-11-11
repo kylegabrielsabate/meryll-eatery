@@ -114,6 +114,7 @@ function sendReceiptEmail($con, $user_id, $order_number, $total_amount, $order_t
                 <p><strong>Date:</strong> ".date('F j, Y \a\t g:i A')."</p>
                 <p><strong>Type:</strong> ".htmlspecialchars($order_type)."</p>
                 <p><strong>Pickup Time:</strong> ".htmlspecialchars($pickup_time)."</p>
+                <p><strong>Payment:</strong> ".htmlspecialchars($_POST['payment_method'] ?? 'Cash')."</p>
             </div>
 
             <table style='width:100%;border-collapse:collapse;margin:20px 0'>
@@ -279,6 +280,29 @@ switch ($action) {
         $order_note = $_POST['order_note'] ?? '';
         $order_number = generateOrderNumber($con);
 
+        // ✅ GCASH PROOF OF PAYMENT UPLOAD
+        $gcash_proof = null;
+        if ($payment_method === 'GCash') {
+            if (!isset($_FILES['gcash_proof']) || $_FILES['gcash_proof']['error'] !== 0) {
+                echo json_encode(['success' => false, 'message' => 'Please upload your GCash proof of payment.']);
+                exit();
+            }
+            $dir = __DIR__ . '/../uploads/proofs/';
+            if (!is_dir($dir)) mkdir($dir, 0777, true);
+            
+            $ext = strtolower(pathinfo($_FILES['gcash_proof']['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif'])) {
+                echo json_encode(['success' => false, 'message' => 'Invalid image type. Use JPG, PNG, or GIF.']);
+                exit();
+            }
+            $fname = 'proof_' . $user_id . '_' . time() . '_' . bin2hex(random_bytes(3)) . '.' . $ext;
+            if (!move_uploaded_file($_FILES['gcash_proof']['tmp_name'], $dir . $fname)) {
+                echo json_encode(['success' => false, 'message' => 'Failed to save proof image.']);
+                exit();
+            }
+            $gcash_proof = $fname;
+        }
+
         try {
             $con->begin_transaction();
             
@@ -287,9 +311,10 @@ switch ($action) {
             if ($row = $res->fetch_assoc()) $maxOrderId = $row['max_id'] ? $row['max_id'] : 0;
             $newOrderId = $maxOrderId + 1;
 
-            $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, payment_method, pickup_time, order_note, total_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            // ✅ INSERT now includes gcash_proof (and fixed bind types: order_note=s, total=d)
+            $stmt = $con->prepare("INSERT INTO orders (order_id, user_id, order_number, order_type, payment_method, pickup_time, order_note, total_amount, status, gcash_proof, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
             if (!$stmt) throw new Exception("Prepare failed: " . $con->error);
-            $stmt->bind_param("iissssdss", $newOrderId, $user_id, $order_number, $order_type, $payment_method, $pickup_time, $order_note, $total_amount, $status);
+            $stmt->bind_param("iisssssdss", $newOrderId, $user_id, $order_number, $order_type, $payment_method, $pickup_time, $order_note, $total_amount, $status, $gcash_proof);
             $stmt->execute();
 
             // Add to order_status table
