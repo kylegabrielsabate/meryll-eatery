@@ -29,7 +29,12 @@ if (!mysqli_real_connect($con, $host, $user, $pass, $db, $port, NULL, $flags)) {
     die("Connection failed: " . mysqli_connect_error());
 }
 
-// ✅ PHILIPPINE TIMEZONE FIX - Add after successful connection
-date_default_timezone_set('Asia/Manila');
-$con->query("SET time_zone = '+08:00'");
+// ✅ PHILIPPINE TIMEZONE FIX - Wrapped in error handling
+try {
+    date_default_timezone_set('Asia/Manila');
+    @$con->query("SET time_zone = '+08:00'");
+} catch (Exception $e) {
+    // Silently fail if timezone setting doesn't work
+    // PHP timezone is still set, just MySQL might use UTC
+}
 ?>
