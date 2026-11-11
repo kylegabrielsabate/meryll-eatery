@@ -16,13 +16,13 @@ function slugify($s){ return trim(preg_replace('/[^a-z0-9]+/','_', strtolower($s
 // ✅ FIXED IMAGE FINDER: checks images/products/ (admin uploads) + case/space-insensitive matching
 function imgTag($folder, $image){ 
     if (empty($image) || $image === 'placeholder.jpg') return "https://via.placeholder.com/200x160/8B0000/ffffff?text=No+Image";
-    $folders = [$folder, 'products', 'meryenda', 'snacks', 'candies', 'drinks', 'noodles', 'essentials', 'ulam', 'accesories', ''];
+    $folders = [$folder, 'products', 'meryenda', 'snacks', 'candies', 'drinks', 'noodles', 'essentials', 'ulam', 'accesories', 'biscuits', 'junkfoods', ''];
     foreach ($folders as $f) {
         $base = __DIR__ . "/../images/" . ($f ? $f . "/" : "");
         $web = "../images/" . ($f ? $f . "/" : "");
         if (!is_dir($base)) continue;
         if (file_exists($base . $image)) return $web . $image;
-        // Case-insensitive & space-insensitive match (fixes Linux/Render filename issues)
+        // Case-insensitive & space-insensitive match
         $target = strtolower(preg_replace('/[^a-z0-9.]/', '', $image));
         foreach (scandir($base) as $file) {
             if ($file === '.' || $file === '..') continue;
@@ -53,11 +53,20 @@ $accesories_items = [['productID'=>0, 'name'=>'Ribbon','price'=>5,'image'=>'ribb
 
 // --- DYNAMIC FETCH FROM DATABASE ---
 $ulam_items = []; $meryenda_items = []; $candies_items = []; $coffee_items = []; $drinks_items = []; $noodles_items = []; $essentials_items = [];
-$sql = "SELECT productID, productname, price, productImage, categoryID FROM products WHERE is_available = 1 AND is_visible = 1 ORDER BY productID ASC";
+$biscuits_items = []; $junkfoods_items = []; // ✅ NEW ARRAYS
+
+$sql = "SELECT productID, productname, price, productImage, categoryID, stock FROM products WHERE is_available = 1 AND is_visible = 1 ORDER BY productID ASC";
 $res = $con->query($sql);
 if ($res) {
     while ($row = $res->fetch_assoc()) {
-        $item = ['productID' => $row['productID'], 'name' => $row['productname'], 'price' => (float)$row['price'], 'image' => $row['productImage'] ?: 'placeholder.jpg', 'folder' => ''];
+        $item = [
+            'productID' => $row['productID'], 
+            'name' => $row['productname'], 
+            'price' => (float)$row['price'], 
+            'image' => $row['productImage'] ?: 'placeholder.jpg', 
+            'stock' => (int)$row['stock'], // ✅ Include stock
+            'folder' => ''
+        ];
         switch ($row['categoryID']) {
             case 1: $item['folder'] = 'ulam'; $ulam_items[] = $item; break;
             case 2: $item['folder'] = 'meryenda'; $meryenda_items[] = $item; break; 
@@ -66,6 +75,8 @@ if ($res) {
             case 5: $item['folder'] = 'drinks'; $drinks_items[] = $item; break;
             case 6: $item['folder'] = 'noodles'; $noodles_items[] = $item; break;
             case 7: $item['folder'] = 'essentials'; $essentials_items[] = $item; break;
+            case 11: $item['folder'] = 'biscuits'; $biscuits_items[] = $item; break; // ✅ Biscuits
+            case 12: $item['folder'] = 'junkfoods'; $junkfoods_items[] = $item; break; // ✅ Junkfoods
         }
     }
 }
@@ -92,13 +103,14 @@ $modal_ulam_items = array_filter($custom_ulam_items, function($item) {
 
 $meat_items = array_filter($modal_ulam_items, function($i) { return preg_match('/chicken|pork|beef|meat|adobo|bbq|tocino/i', $i['name']); });
 
-// Gulay list includes Tortang Talong (since "Gulay" product moved to Meryenda)
+// Gulay list includes Tortang Talong
 $gulay_items = array_filter($custom_ulam_items, function($i) { return preg_match('/gulay|talong|sitaw|ampalaya|sayote|vegetable|kangkong|malunggay/i', $i['name']); });
 
 if(empty($meat_items)) $meat_items = $modal_ulam_items;
 
 $active_cat = isset($_GET['cat']) ? $_GET['cat'] : 'all';
 
+// ✅ UPDATED RENDER GRID: Shows Stock Badges
 function renderGrid($items, $clickAction = 'qty', $isCandiesCategory = false) {
     if (empty($items)) return '<p style="color:var(--text-muted);padding:1rem;">No items available.</p>';
     $html = '<div class="image-grid">';
@@ -113,10 +125,31 @@ function renderGrid($items, $clickAction = 'qty', $isCandiesCategory = false) {
         $onclick = ($action === 'amount') ? "openCustomAmountModal(this.closest('.img-card'))" : "openQtyModal(this.closest('.img-card'))";
         $priceDisplay = $isCandies ? '₱5/4pcs' : '₱'.$item['price'];
         
+        // ✅ STOCK LOGIC
+        $stock = $item['stock'] ?? 999;
+        if ($stock <= 0) {
+            $stockClass = 'stock-out';
+            $stockText = 'Sold Out';
+            $disabled = 'style="pointer-events:none; opacity:0.6;"'; // Disable clicks if sold out
+        } elseif ($stock <= 5) {
+            $stockClass = 'stock-low';
+            $stockText = "Only $stock left!";
+            $disabled = '';
+        } elseif ($stock <= 20) {
+            $stockClass = 'stock-med';
+            $stockText = "$stock left";
+            $disabled = '';
+        } else {
+            $stockClass = 'stock-ok';
+            $stockText = "In stock";
+            $disabled = '';
+        }
+        
         $html .= '
-        <div class="img-card" data-slug="'.$slug.'" data-productid="'.$pid.'" data-name="'.htmlspecialchars($item['name']).'" data-price="'.$item['price'].'" data-img="'.$img.'" data-is-candies="'.($isCandies?'1':'0').'">
+        <div class="img-card" data-slug="'.$slug.'" data-productid="'.$pid.'" data-name="'.htmlspecialchars($item['name']).'" data-price="'.$item['price'].'" data-img="'.$img.'" data-is-candies="'.($isCandies?'1':'0').'" data-stock="'.$stock.'" '.$disabled.'>
             <div class="img-card-img-wrapper" onclick="'.$onclick.'">
                 <img src="'.$img.'" alt="'.htmlspecialchars($item['name']).'" onerror="this.src=\''.$ph.'\'">
+                <span class="badge '.$stockClass.'" style="position:absolute;top:8px;right:8px;font-size:0.7rem;padding:4px 8px;border-radius:12px;">'.$stockText.'</span>
             </div>
             <div class="img-card-info">
                 <div class="img-card-name" onclick="'.$onclick.'">'.htmlspecialchars($item['name']).'</div>
@@ -168,6 +201,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .page-header h1{font-size:1.8rem;font-weight:700;color:var(--text-dark);margin-bottom:.5rem}
 .category-section{margin-bottom:3rem}
 .category-title{font-size:1.3rem;font-weight:700;color:var(--brand-red);margin-bottom:1.5rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--border-color);padding-bottom:.5rem}
+.sub-category-title{font-size:1.1rem;font-weight:600;color:var(--text-dark);margin:1.5rem 0 1rem 0;display:flex;align-items:center;gap:8px}
 .rice-list{display:flex;flex-direction:column;gap:1rem;max-width:600px}
 .rice-item{display:flex;justify-content:space-between;align-items:center;padding:1.2rem;background:#fff;border-radius:10px;box-shadow:0 2px 5px rgba(0,0,0,.05);border:1px solid var(--border-color);cursor:pointer;transition:all .2s}
 .rice-item:hover{border-color:var(--brand-red);transform:translateX(5px)}
@@ -176,9 +210,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .btn-custom-order{margin-top:2rem;background:var(--brand-red);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer;font-size:1rem;display:inline-flex;align-items:center;gap:8px}
 .btn-custom-order:hover{background:#6d0000}
 .image-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1.5rem}
-.img-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:transform .2s;border:1px solid var(--border-color);display:flex;flex-direction:column; height: 100%;}
+.img-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:transform .2s;border:1px solid var(--border-color);display:flex;flex-direction:column; height: 100%; position: relative;}
 .img-card:hover{transform:translateY(-4px);box-shadow:0 8px 20px rgba(0,0,0,.12)}
-.img-card-img-wrapper{width:100%;height:160px;background:#eee;overflow:hidden;cursor:pointer}
+.img-card-img-wrapper{width:100%;height:160px;background:#eee;overflow:hidden;cursor:pointer; position: relative;}
 .img-card img{width:100%;height:100%;object-fit:cover}
 .img-card-info{padding:10px;text-align:center;flex:1;display:flex;flex-direction:column;}
 .img-card-name{font-size:.9rem;font-weight:600;color:var(--text-dark);margin-bottom:5px;cursor:pointer; min-height: 40px; display: flex; align-items: center; justify-content: center;}
@@ -224,6 +258,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
 .sidebar-overlay.active { display: block; }
 @media(max-width:768px){.sidebar{transform:translateX(-100%);transition:transform .3s}.sidebar.open{transform:translateX(0)}.main-content{margin-left:0}.mobile-toggle{display:block!important}}
 .mobile-toggle{display:none;background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text-dark)}
+
+/* ✅ STOCK BADGE STYLES */
+.stock-low { background: #fee2e2; color: #991b1b; }
+.stock-med { background: #fef3c7; color: #92400e; }
+.stock-ok { background: #dcfce7; color: #166534; }
+.stock-out { background: #e5e7eb; color: #374151; }
 </style>
 </head>
 <body>
@@ -303,10 +343,25 @@ body{font-family:'Inter',sans-serif;background:var(--bg-light);display:flex;min-
         </div>
         <?php endif; ?>
 
+        <!-- ✅ UPDATED MERYENDA SECTION WITH SUB-CATEGORIES -->
         <?php if($active_cat=='all'||$active_cat=='meryenda'): ?>
         <div class="category-section">
             <div class="category-title"><i class="bi bi-cookie"></i> Meryenda & Snacks</div>
-            <?=renderGrid($meryenda_items, 'amount')?> 
+            
+            <?php if(!empty($meryenda_items)): ?>
+                <h4 class="sub-category-title">🍜 Snacks</h4>
+                <?=renderGrid($meryenda_items, 'amount')?> 
+            <?php endif; ?>
+            
+            <?php if(!empty($biscuits_items)): ?>
+                <h4 class="sub-category-title">🍪 Biscuits</h4>
+                <?=renderGrid($biscuits_items)?> 
+            <?php endif; ?>
+            
+            <?php if(!empty($junkfoods_items)): ?>
+                <h4 class="sub-category-title">🥔 Junkfoods</h4>
+                <?=renderGrid($junkfoods_items)?> 
+            <?php endif; ?>
         </div>
         <?php endif; ?>
 
