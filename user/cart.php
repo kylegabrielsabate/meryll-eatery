@@ -105,7 +105,7 @@ textarea.form-control{resize:vertical;min-height:80px}
                 <input type="time" id="pickup_time" name="pickup_time" class="form-control" required>
             </div>
             
-            <!-- ✅ PHONE NUMBER FIELD (required for Pick-up/Delivery) -->
+            <!-- ✅ PHONE NUMBER FIELD (required for Pick-up/Delivery only) -->
             <div class="form-group">
                 <label for="customer_phone">📱 Contact Number <span id="phoneRequired" class="text-danger">*</span></label>
                 <input type="tel" id="customer_phone" name="customer_phone" class="form-control" placeholder="09XX XXX XXXX" required>
@@ -286,7 +286,7 @@ function placeOrder() {
     
     if (!time) { showNotif('error', 'Missing Info', 'Please select a pickup time!'); return; }
     
-    // ✅ Validate phone for Pick-up/Delivery
+    // ✅ Validate phone for Pick-up/Delivery ONLY (not Dine-in)
     if ((orderType === 'Pick-up' || orderType === 'Delivered') && !phone) {
         showNotif('error', 'Phone Required', 'Please provide your contact number so we can reach you!');
         return;
